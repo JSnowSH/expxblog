@@ -2,7 +2,10 @@ import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { PostGrid } from '@/components/blog/PostGrid'
 import { CategoryFilter } from '@/components/blog/CategoryFilter'
+import { HeroPost } from '@/components/blog/HeroPost'
+import { EditorialGrid } from '@/components/blog/EditorialGrid'
 import { Pagination } from '@/components/ui/Pagination'
+import { getSettings } from '@/lib/settings'
 
 export const metadata: Metadata = {
   title: 'Home',
@@ -32,10 +35,26 @@ export default async function HomePage({
 }: {
   searchParams: { page?: string; category?: string; tag?: string }
 }) {
+  const { template } = await getSettings()
+
+  const pageLimit = template === 'portal' ? '10' : '9'
   const [postsData, categoriesData] = await Promise.all([
-    getPosts({ page: searchParams.page ?? '1', limit: '9', ...searchParams }),
+    getPosts({ page: searchParams.page ?? '1', limit: pageLimit, ...searchParams }),
     getCategories(),
   ])
+
+  if (template === 'portal') {
+    const [heroPost, ...gridPosts] = postsData.posts
+    return (
+      <div>
+        {heroPost && <HeroPost post={heroPost} />}
+        <EditorialGrid posts={gridPosts} />
+        <Suspense>
+          <Pagination currentPage={postsData.page} totalPages={postsData.pages} />
+        </Suspense>
+      </div>
+    )
+  }
 
   return (
     <div className="flex gap-8">
@@ -55,10 +74,7 @@ export default async function HomePage({
         </div>
 
         <Suspense>
-          <Pagination
-            currentPage={postsData.page}
-            totalPages={postsData.pages}
-          />
+          <Pagination currentPage={postsData.page} totalPages={postsData.pages} />
         </Suspense>
       </div>
 
