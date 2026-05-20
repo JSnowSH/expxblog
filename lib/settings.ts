@@ -10,6 +10,7 @@ export interface ThemeColors {
 }
 
 export interface CompanyInfo {
+  logo_url: string
   blog_name: string
   blog_description: string
   company_name: string
@@ -72,6 +73,7 @@ export function lightenHex(hex: string, factor = 0.9): string {
 }
 
 export const DEFAULT_COMPANY: CompanyInfo = {
+  logo_url: '',
   blog_name: '',
   blog_description: '',
   company_name: '',

@@ -1,12 +1,21 @@
 import Link from 'next/link'
 import { SearchBar } from '@/components/blog/SearchBar'
 
-export function Header() {
+interface Props {
+  blogName: string
+  logoUrl?: string
+}
+
+export function Header({ blogName, logoUrl }: Props) {
   return (
     <header className="bg-brand-primary text-white shadow-md">
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-        <Link href="/" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity">
-          MMA Sistemas Blog
+        <Link href="/" className="hover:opacity-90 transition-opacity shrink-0">
+          {logoUrl ? (
+            <img src={logoUrl} alt={blogName} className="h-9 w-auto" />
+          ) : (
+            <span className="text-xl font-bold tracking-tight">{blogName}</span>
+          )}
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium">

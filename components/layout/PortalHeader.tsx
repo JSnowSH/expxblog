@@ -12,15 +12,24 @@ async function getCategories() {
   }
 }
 
-export async function PortalHeader() {
+interface Props {
+  blogName: string
+  logoUrl?: string
+}
+
+export async function PortalHeader({ blogName, logoUrl }: Props) {
   const cats = await getCategories()
 
   return (
     <header style={{ backgroundColor: 'var(--color-primary)' }} className="text-white shadow-md">
       {/* Row 1: logo + search */}
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-        <Link href="/" className="text-xl font-bold tracking-tight hover:opacity-90 transition-opacity whitespace-nowrap">
-          MMA Sistemas Blog
+        <Link href="/" className="hover:opacity-90 transition-opacity shrink-0">
+          {logoUrl ? (
+            <img src={logoUrl} alt={blogName} className="h-9 w-auto" />
+          ) : (
+            <span className="text-xl font-bold tracking-tight whitespace-nowrap">{blogName}</span>
+          )}
         </Link>
         <div className="w-full max-w-xs">
           <SearchBar />

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { SiteSettings, ThemeColors } from '@/lib/settings'
+import { ImageUpload } from '@/components/ui/ImageUpload'
 
 interface Props {
   initial: SiteSettings
@@ -98,6 +99,7 @@ const DEFAULT_COLORS: Record<string, ThemeColors> = {
 export function ApparenceClient({ initial }: Props) {
   const [template, setTemplate] = useState(initial.template)
   const [colors, setColors] = useState<ThemeColors>(initial.colors)
+  const [logoUrl, setLogoUrl] = useState(initial.company.logo_url)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
@@ -124,7 +126,7 @@ export function ApparenceClient({ initial }: Props) {
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template, colors }),
+        body: JSON.stringify({ template, colors, company: { logo_url: logoUrl } }),
       })
       if (!res.ok) throw new Error('Falha ao salvar')
       setToast({ type: 'success', msg: 'Configurações salvas! Recarregue a página para ver o novo tema.' })
@@ -186,6 +188,15 @@ export function ApparenceClient({ initial }: Props) {
               <p className="text-sm text-gray-500 mt-0.5">{opt.description}</p>
             </button>
           ))}
+        </div>
+      </section>
+
+      {/* Logo */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-1">Logotipo</h2>
+        <p className="text-sm text-gray-500 mb-4">Aparece no canto esquerdo do header. Sem logo, o nome do blog é exibido no lugar.</p>
+        <div className="max-w-sm">
+          <ImageUpload value={logoUrl} onChange={setLogoUrl} variant="logo" />
         </div>
       </section>
 

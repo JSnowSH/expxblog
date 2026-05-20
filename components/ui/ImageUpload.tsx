@@ -5,9 +5,10 @@ import { useRef, useState } from 'react'
 interface ImageUploadProps {
   value: string
   onChange: (url: string) => void
+  variant?: 'image' | 'logo'
 }
 
-export function ImageUpload({ value, onChange }: ImageUploadProps) {
+export function ImageUpload({ value, onChange, variant = 'image' }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -41,7 +42,14 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
 
       {value ? (
         <div className="relative group">
-          <img src={value} alt="Capa" className="rounded-lg w-full aspect-video object-cover" />
+          <img
+            src={value}
+            alt="Preview"
+            className={variant === 'logo'
+              ? 'rounded-lg w-full h-24 object-contain bg-gray-100'
+              : 'rounded-lg w-full aspect-video object-cover'
+            }
+          />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
             <button
               type="button"
@@ -65,7 +73,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-brand-primary hover:bg-brand-primary-light transition-colors text-gray-400 hover:text-brand-primary"
+          className={`w-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-brand-primary hover:bg-brand-primary-light transition-colors text-gray-400 hover:text-brand-primary ${variant === 'logo' ? 'h-24' : 'aspect-video'}`}
         >
           {uploading ? (
             <>
