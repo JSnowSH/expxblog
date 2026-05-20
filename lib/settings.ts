@@ -49,6 +49,12 @@ const COLOR_DEFAULTS: Record<string, ThemeColors> = {
     background: '#F7F8FA',
     surface: '#FFFFFF',
   },
+  news: {
+    primary: '#003580',
+    secondary: '#E8002D',
+    background: '#F2F2F2',
+    surface: '#FFFFFF',
+  },
 }
 
 export function defaultColors(template: string): ThemeColors {
