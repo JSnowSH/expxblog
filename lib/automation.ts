@@ -40,7 +40,11 @@ export async function runAutomationCycle(force = false): Promise<AutomationResul
   }
 
   // Pick theme
-  const selectedIds: number[] = config.theme_ids ? JSON.parse(config.theme_ids) : []
+  let selectedIds: number[] = []
+  try {
+    selectedIds = JSON.parse(config.theme_ids)
+    if (!Array.isArray(selectedIds)) selectedIds = []
+  } catch {}
   let theme: { id: number; title: string; description: string | null } | undefined
 
   if (selectedIds.length > 0) {

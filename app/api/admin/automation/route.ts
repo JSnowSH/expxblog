@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({
       enabled: config.enabled,
       interval_hours: config.interval_hours,
-      theme_ids: JSON.parse(config.theme_ids),
+      theme_ids: (() => { try { return JSON.parse(config.theme_ids) } catch { return [] } })(),
       custom_prompt: config.custom_prompt ?? '',
       last_run_at: config.last_run_at,
       next_run_at: config.next_run_at,
@@ -27,7 +27,7 @@ export async function PUT(request: NextRequest) {
 
     const config = await getOrCreateAutomationConfig()
     const now = new Date()
-    const hours = Number(interval_hours) || 24
+    const hours = Math.max(1, Math.min(8760, Number(interval_hours) || 24))
 
     // Recalculate next_run_at based on current time when enabling
     const nextRun = enabled
