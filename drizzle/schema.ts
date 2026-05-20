@@ -81,6 +81,12 @@ export const postTags = pgTable(
   (t) => ({ pk: primaryKey({ columns: [t.post_id, t.tag_id] }) })
 )
 
+export const siteSettings = pgTable('site_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+})
+
 export const postsRelations = relations(posts, ({ many }) => ({
   postCategories: many(postCategories),
   postTags: many(postTags),
@@ -115,3 +121,4 @@ export type Category = typeof categories.$inferSelect
 export type NewCategory = typeof categories.$inferInsert
 export type Tag = typeof tags.$inferSelect
 export type NewTag = typeof tags.$inferInsert
+export type SiteSetting = typeof siteSettings.$inferSelect
