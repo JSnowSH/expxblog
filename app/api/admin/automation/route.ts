@@ -27,7 +27,7 @@ export async function PUT(request: NextRequest) {
 
     const config = await getOrCreateAutomationConfig()
     const now = new Date()
-    const hours = Math.max(1, Math.min(8760, Number(interval_hours) || 24))
+    const hours = Math.max(5 / 60, Math.min(168, Number(interval_hours) || 24))
 
     // Recalculate next_run_at based on current time when enabling
     const nextRun = enabled

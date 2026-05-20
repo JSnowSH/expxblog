@@ -628,11 +628,19 @@ function TemasSection() {
 }
 
 const INTERVAL_OPTIONS = [
+  { value: 5 / 60, label: 'A cada 5 minutos' },
+  { value: 10 / 60, label: 'A cada 10 minutos' },
+  { value: 15 / 60, label: 'A cada 15 minutos' },
+  { value: 30 / 60, label: 'A cada 30 minutos' },
+  { value: 1, label: 'A cada 1 hora' },
+  { value: 2, label: 'A cada 2 horas' },
   { value: 4, label: 'A cada 4 horas' },
+  { value: 6, label: 'A cada 6 horas' },
   { value: 8, label: 'A cada 8 horas' },
   { value: 12, label: 'A cada 12 horas' },
-  { value: 24, label: 'A cada 24 horas' },
+  { value: 24, label: 'A cada 1 dia' },
   { value: 48, label: 'A cada 2 dias' },
+  { value: 72, label: 'A cada 3 dias' },
   { value: 168, label: 'A cada 7 dias' },
 ]
 

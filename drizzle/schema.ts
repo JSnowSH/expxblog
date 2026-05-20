@@ -3,6 +3,7 @@ import {
   text,
   serial,
   integer,
+  real,
   timestamp,
   boolean,
   primaryKey,
@@ -152,7 +153,7 @@ export const newsletterSubscribers = pgTable(
 export const automationConfig = pgTable('automation_config', {
   id: serial('id').primaryKey(),
   enabled: boolean('enabled').notNull().default(false),
-  interval_hours: integer('interval_hours').notNull().default(24),
+  interval_hours: real('interval_hours').notNull().default(24),
   theme_ids: text('theme_ids').notNull().default('[]'),
   custom_prompt: text('custom_prompt'),
   last_run_at: timestamp('last_run_at'),
