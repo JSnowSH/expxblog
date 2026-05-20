@@ -114,13 +114,28 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram }: Pro
   }
 
   async function handleRegisterWebhook() {
+    if (!telegram.bot_token) {
+      setToast({ type: 'error', msg: 'Preencha o Token do Bot antes de registrar o webhook.' })
+      return
+    }
     setWebhookLoading(true)
     setToast(null)
     try {
+      // Save telegram settings first so the setup route can read the token from DB
+      const saveRes = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram }),
+      })
+      if (!saveRes.ok) {
+        const d = await saveRes.json()
+        throw new Error(d.error ?? 'Falha ao salvar configurações')
+      }
+
       const res = await fetch('/api/admin/telegram/setup', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Falha ao registrar webhook')
-      setToast({ type: 'success', msg: `Webhook registrado: ${data.webhook_url}` })
+      setToast({ type: 'success', msg: `Webhook registrado com sucesso! URL: ${data.webhook_url}` })
     } catch (err) {
       setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao registrar webhook.' })
     } finally {
