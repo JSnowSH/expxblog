@@ -2,11 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/drizzle/db'
 import { automationConfig } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
-import { getOrCreateAutomationConfig } from '@/lib/automation'
+
+export const dynamic = 'force-dynamic'
+
+async function getOrCreate() {
+  const rows = await db.select().from(automationConfig).limit(1)
+  if (rows.length > 0) return rows[0]
+  const [row] = await db.insert(automationConfig).values({}).returning()
+  return row
+}
 
 export async function GET() {
   try {
-    const config = await getOrCreateAutomationConfig()
+    const config = await getOrCreate()
     return NextResponse.json({
       enabled: config.enabled,
       interval_hours: config.interval_hours,
@@ -25,7 +33,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { enabled, interval_hours, theme_ids, custom_prompt } = body
 
-    const config = await getOrCreateAutomationConfig()
+    const config = await getOrCreate()
     const now = new Date()
     const hours = Math.max(5 / 60, Math.min(168, Number(interval_hours) || 24))
 

@@ -93,7 +93,7 @@ Responda com um JSON válido (sem markdown, sem \`\`\`) com a seguinte estrutura
       )
     }
 
-    const slug = generateSlug(articleData.title)
+    const slug = generateSlug(articleData.title) + '-' + Date.now()
     const cleanContent = sanitizeHtml(articleData.content, sanitizeOptions)
     const now = new Date()
 
