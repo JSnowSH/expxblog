@@ -9,9 +9,11 @@
     "lint": "next lint",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "migrate:images": "tsx scripts/migrate-images.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
     "@tiptap/extension-image": "^2.3.0",
     "@tiptap/extension-link": "^2.3.0",
     "@tiptap/extension-placeholder": "^2.3.0",

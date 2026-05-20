@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
+import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin'
 
 const MAX_SIZE = 5 * 1024 * 1024
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   const token = cookies().get('auth_token')?.value
@@ -30,11 +32,20 @@ export async function POST(request: NextRequest) {
 
   const ext = path.extname(file.name).toLowerCase() || '.jpg'
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads')
 
-  await mkdir(uploadDir, { recursive: true })
   const bytes = await file.arrayBuffer()
-  await writeFile(path.join(uploadDir, filename), Buffer.from(bytes))
+  const { error } = await supabaseAdmin.storage
+    .from(STORAGE_BUCKET)
+    .upload(filename, Buffer.from(bytes), { contentType: file.type })
 
-  return NextResponse.json({ url: `/uploads/${filename}` })
+  if (error) {
+    console.error('Supabase upload error:', error)
+    return NextResponse.json({ error: 'Erro ao fazer upload da imagem' }, { status: 500 })
+  }
+
+  const { data: { publicUrl } } = supabaseAdmin.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(filename)
+
+  return NextResponse.json({ url: publicUrl })
 }
