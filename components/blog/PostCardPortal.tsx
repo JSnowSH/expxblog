@@ -21,7 +21,7 @@ export function PostCardPortal({ post, size = 'small' }: PostCardPortalProps) {
     >
       <Link href={`/${post.slug}`} className="block">
         {post.cover_image && (
-          <div className={`relative overflow-hidden ${isLarge ? 'aspect-video' : 'aspect-video'}`}>
+          <div className={`relative overflow-hidden ${isLarge ? 'aspect-video' : 'aspect-[4/3]'}`}>
             <img
               src={post.cover_image}
               alt={post.title}
@@ -31,7 +31,7 @@ export function PostCardPortal({ post, size = 'small' }: PostCardPortalProps) {
         )}
       </Link>
 
-      <div className={`p-4 ${isLarge ? 'p-5' : ''}`}>
+      <div className={isLarge ? 'p-5' : 'p-4'}>
         {post.categories.length > 0 && (
           <span
             className="text-xs font-bold uppercase tracking-wider mb-2 block"
