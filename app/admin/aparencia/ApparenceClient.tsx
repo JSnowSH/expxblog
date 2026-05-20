@@ -128,6 +128,77 @@ const TEMPLATE_OPTIONS = [
       </svg>
     ),
   },
+  {
+    id: 'news',
+    name: 'News',
+    description: 'Estilo portal de notícias com seções por categoria e sidebar de destaques',
+    preview: (
+      <svg viewBox="0 0 240 160" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        {/* Header row 1: white */}
+        <rect x="0" y="0" width="240" height="16" fill="white" rx="3" />
+        <rect x="0" y="15" width="240" height="1" fill="#e5e7eb" />
+        <rect x="8" y="4" width="44" height="7" fill="#003580" rx="2" />
+        <rect x="180" y="3" width="52" height="9" fill="#f3f4f6" rx="3" />
+        {/* Header row 2: primary blue */}
+        <rect x="0" y="16" width="240" height="13" fill="#003580" />
+        <rect x="8" y="20" width="18" height="5" fill="white" opacity="0.9" rx="1" />
+        <rect x="32" y="20" width="24" height="5" fill="white" opacity="0.55" rx="1" />
+        <rect x="62" y="20" width="20" height="5" fill="white" opacity="0.55" rx="1" />
+        <rect x="88" y="20" width="28" height="5" fill="white" opacity="0.55" rx="1" />
+        {/* Section 1 heading */}
+        <rect x="0" y="34" width="3" height="8" fill="#003580" rx="1" />
+        <rect x="7" y="36" width="44" height="4" fill="#1a1a2e" rx="1" />
+        <rect x="138" y="35" width="22" height="5" fill="#003580" opacity="0.4" rx="1" />
+        {/* Section 1 cards row */}
+        <rect x="0" y="45" width="52" height="38" fill="white" rx="2" />
+        <rect x="0" y="45" width="52" height="22" fill="#e5e7eb" rx="2" />
+        <rect x="2" y="70" width="44" height="4" fill="#d1d5db" rx="1" />
+        <rect x="55" y="45" width="52" height="38" fill="white" rx="2" />
+        <rect x="55" y="45" width="52" height="22" fill="#e5e7eb" rx="2" />
+        <rect x="57" y="70" width="44" height="4" fill="#d1d5db" rx="1" />
+        <rect x="110" y="45" width="52" height="38" fill="white" rx="2" />
+        <rect x="110" y="45" width="52" height="22" fill="#e5e7eb" rx="2" />
+        <rect x="112" y="70" width="44" height="4" fill="#d1d5db" rx="1" />
+        {/* Section 2 heading */}
+        <rect x="0" y="88" width="3" height="8" fill="#003580" rx="1" />
+        <rect x="7" y="90" width="38" height="4" fill="#1a1a2e" rx="1" />
+        {/* Section 2 cards row */}
+        <rect x="0" y="98" width="52" height="34" fill="white" rx="2" />
+        <rect x="0" y="98" width="52" height="18" fill="#e5e7eb" rx="2" />
+        <rect x="2" y="120" width="44" height="4" fill="#d1d5db" rx="1" />
+        <rect x="55" y="98" width="52" height="34" fill="white" rx="2" />
+        <rect x="55" y="98" width="52" height="18" fill="#e5e7eb" rx="2" />
+        <rect x="57" y="120" width="44" height="4" fill="#d1d5db" rx="1" />
+        <rect x="110" y="98" width="52" height="34" fill="white" rx="2" />
+        <rect x="110" y="98" width="52" height="18" fill="#e5e7eb" rx="2" />
+        <rect x="112" y="120" width="44" height="4" fill="#d1d5db" rx="1" />
+        {/* Right sidebar */}
+        <rect x="167" y="30" width="73" height="104" fill="white" rx="3" />
+        <rect x="169" y="33" width="3" height="7" fill="#E8002D" rx="1" />
+        <rect x="176" y="35" width="36" height="4" fill="#1a1a2e" rx="1" />
+        <rect x="169" y="45" width="16" height="11" fill="#e5e7eb" rx="1" />
+        <rect x="169" y="45" width="7" height="7" fill="#003580" rx="3" />
+        <rect x="189" y="46" width="46" height="3" fill="#d1d5db" rx="1" />
+        <rect x="189" y="52" width="32" height="3" fill="#e5e7eb" rx="1" />
+        <rect x="169" y="61" width="16" height="11" fill="#e5e7eb" rx="1" />
+        <rect x="169" y="61" width="7" height="7" fill="#003580" rx="3" />
+        <rect x="189" y="62" width="46" height="3" fill="#d1d5db" rx="1" />
+        <rect x="189" y="68" width="32" height="3" fill="#e5e7eb" rx="1" />
+        <rect x="169" y="77" width="16" height="11" fill="#e5e7eb" rx="1" />
+        <rect x="169" y="77" width="7" height="7" fill="#003580" rx="3" />
+        <rect x="189" y="78" width="46" height="3" fill="#d1d5db" rx="1" />
+        <rect x="189" y="84" width="32" height="3" fill="#e5e7eb" rx="1" />
+        <rect x="169" y="96" width="3" height="7" fill="#E8002D" rx="1" />
+        <rect x="176" y="98" width="24" height="4" fill="#1a1a2e" rx="1" />
+        <rect x="169" y="107" width="28" height="8" fill="#f3f4f6" rx="4" />
+        <rect x="200" y="107" width="22" height="8" fill="#f3f4f6" rx="4" />
+        <rect x="169" y="119" width="32" height="8" fill="#f3f4f6" rx="4" />
+        <rect x="204" y="119" width="28" height="8" fill="#f3f4f6" rx="4" />
+        {/* Footer */}
+        <rect x="0" y="150" width="240" height="10" fill="#003580" rx="2" />
+      </svg>
+    ),
+  },
 ]
 
 const COLOR_LABELS: { key: keyof ThemeColors; label: string }[] = [
@@ -141,6 +212,7 @@ const DEFAULT_COLORS: Record<string, ThemeColors> = {
   default: { primary: '#1A4FA0', secondary: '#F58A2D', background: '#F9FAFB', surface: '#FFFFFF' },
   portal: { primary: '#CC0000', secondary: '#FF6600', background: '#F5F5F5', surface: '#FFFFFF' },
   business: { primary: '#0D1B4B', secondary: '#FF6B35', background: '#F7F8FA', surface: '#FFFFFF' },
+  news: { primary: '#003580', secondary: '#E8002D', background: '#F2F2F2', surface: '#FFFFFF' },
 }
 
 export function ApparenceClient({ initial }: Props) {
