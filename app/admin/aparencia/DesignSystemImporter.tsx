@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { DesignSystem } from '@/lib/settings'
+import type { DesignSystem, ThemeColors } from '@/lib/settings'
 
 interface ExtractedTokens {
   custom_properties: Record<string, string>
@@ -27,10 +27,50 @@ function parsePx(v: string): number {
   return NaN
 }
 
+function mapThemeColors(
+  props: Record<string, string>,
+  rawColors: string[],
+): Partial<ThemeColors> {
+  const mapped: Partial<ThemeColors> = {}
+
+  const colorEntries = Object.entries(props).filter(([, v]) => /^#[0-9A-Fa-f]{3,8}$/.test(v.trim()))
+  const find = (pattern: RegExp) => colorEntries.find(([k]) => pattern.test(k))?.[1].trim()
+
+  const primary =
+    find(/primary(?!-\w*text|\w*muted|\w*secondary|\w*light|\w*dark|\w*bg|\w*surface)/i) ??
+    find(/brand|accent|main|key-color/i)
+  const secondary =
+    find(/secondary(?!-\w*text|\w*muted)/i) ??
+    find(/highlight|action|cta/i)
+  const background =
+    find(/background|bg(?!-\w*card|\w*surface|\w*overlay)$|page-bg|body-bg/i) ??
+    find(/bg-default|bg-base/i)
+  const surface =
+    find(/surface|card-bg|card-background|panel|bg-card/i)
+
+  // Fallback: use the most frequent light color (near-white) as background
+  const lightColors = rawColors.filter(c => {
+    const hex = c.replace('#', '')
+    const r = parseInt(hex.slice(0, 2), 16)
+    const g = parseInt(hex.slice(2, 4), 16)
+    const b = parseInt(hex.slice(4, 6), 16)
+    return r > 230 && g > 230 && b > 230
+  })
+
+  if (primary) mapped.primary = primary
+  if (secondary) mapped.secondary = secondary
+  if (background) mapped.background = background
+  else if (lightColors[0]) mapped.background = lightColors[0]
+  if (surface) mapped.surface = surface
+  else if (lightColors[1]) mapped.surface = lightColors[1]
+
+  return mapped
+}
+
 function mapTokensToDS(
   props: Record<string, string>,
   fontFamilies: string[],
-  colors: string[],
+  _colors: string[],
   borderRadii: string[],
   fontSizes: string[],
 ): Partial<DesignSystem> {
@@ -151,15 +191,17 @@ function mapTokensToDS(
 
 interface Props {
   onApply: (tokens: Partial<DesignSystem>) => void
+  onColorsApply?: (colors: Partial<ThemeColors>) => void
   onLogoApply?: (url: string) => void
 }
 
-export function DesignSystemImporter({ onApply, onLogoApply }: Props) {
+export function DesignSystemImporter({ onApply, onColorsApply, onLogoApply }: Props) {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [extracted, setExtracted] = useState<ExtractedTokens | null>(null)
   const [mapped, setMapped] = useState<Partial<DesignSystem> | null>(null)
+  const [mappedColors, setMappedColors] = useState<Partial<ThemeColors> | null>(null)
   const [logoLoading, setLogoLoading] = useState<string | null>(null)
   const [logoError, setLogoError] = useState<string | null>(null)
 
@@ -188,9 +230,14 @@ export function DesignSystemImporter({ onApply, onLogoApply }: Props) {
         data.border_radii,
         data.font_sizes,
       )
+      const themeColors = mapThemeColors(data.custom_properties, data.colors)
       setMapped(tokens)
+      setMappedColors(themeColors)
       if (Object.keys(tokens).length > 0) {
         onApply(tokens)
+      }
+      if (Object.keys(themeColors).length > 0) {
+        onColorsApply?.(themeColors)
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao extrair')
@@ -201,6 +248,7 @@ export function DesignSystemImporter({ onApply, onLogoApply }: Props) {
 
   function handleApply() {
     if (mapped) onApply(mapped)
+    if (mappedColors) onColorsApply?.(mappedColors)
   }
 
   async function handleFetchLogo(logoUrl: string) {
