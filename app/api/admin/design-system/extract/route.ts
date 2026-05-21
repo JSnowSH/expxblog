@@ -11,10 +11,13 @@ interface ExtractedTokens {
   colors: string[]
   border_radii: string[]
   font_sizes: string[]
+  logo_candidates: string[]
   source_url: string
 }
 
-function extractCSSTokens(cssText: string): Omit<ExtractedTokens, 'source_url'> {
+type CSSTokens = Omit<ExtractedTokens, 'source_url' | 'logo_candidates'>
+
+function extractCSSTokens(cssText: string): CSSTokens {
   const custom_properties: Record<string, string> = {}
   const font_families = new Set<string>()
   const colors = new Set<string>()
@@ -69,7 +72,65 @@ function extractCSSTokens(cssText: string): Omit<ExtractedTokens, 'source_url'> 
   }
 }
 
-async function fetchCSSFromPage(url: string): Promise<string> {
+const LOGO_IMAGE_EXTS = /\.(png|jpg|jpeg|svg|webp)(\?.*)?$/i
+
+function extractLogoCandidates(html: string, baseUrl: string): string[] {
+  const base = new URL(baseUrl)
+  const candidates = new Set<string>()
+
+  const toAbsolute = (href: string) => {
+    try {
+      if (href.startsWith('http')) return href
+      if (href.startsWith('//')) return `https:${href}`
+      return new URL(href, base).toString()
+    } catch {
+      return null
+    }
+  }
+
+  // <img> with logo-related alt/class/id/src
+  const imgRegex = /<img([^>]+)>/gi
+  let m: RegExpExecArray | null
+  while ((m = imgRegex.exec(html)) !== null) {
+    const attrs = m[1]
+    const isLogo =
+      /\blogo\b/i.test(attrs) ||
+      /alt=["'][^"']*logo[^"']*["']/i.test(attrs) ||
+      /class=["'][^"']*logo[^"']*["']/i.test(attrs) ||
+      /id=["'][^"']*logo[^"']*["']/i.test(attrs)
+    if (!isLogo) continue
+    const srcMatch = /src=["']([^"']+)["']/.exec(attrs)
+    if (srcMatch) {
+      const abs = toAbsolute(srcMatch[1])
+      if (abs && LOGO_IMAGE_EXTS.test(abs)) candidates.add(abs)
+    }
+  }
+
+  // <link rel="icon" type="image/svg+xml"> — SVG favicon is often the logo
+  const linkIconRegex = /<link([^>]+)>/gi
+  while ((m = linkIconRegex.exec(html)) !== null) {
+    const attrs = m[1]
+    if (!/rel=["']([^"']*\s)?icon([^"']*\s)?["']/i.test(attrs)) continue
+    if (!/type=["']image\/svg\+xml["']/i.test(attrs)) continue
+    const hrefMatch = /href=["']([^"']+)["']/.exec(attrs)
+    if (hrefMatch) {
+      const abs = toAbsolute(hrefMatch[1])
+      if (abs) candidates.add(abs)
+    }
+  }
+
+  // og:image — often the brand image
+  const ogRegex = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+  const ogMatch = ogRegex.exec(html)
+  if (ogMatch) {
+    const abs = toAbsolute(ogMatch[1])
+    if (abs && LOGO_IMAGE_EXTS.test(abs)) candidates.add(abs)
+  }
+
+  return Array.from(candidates).slice(0, 6)
+}
+
+async function fetchPageData(url: string): Promise<{ html: string; css: string }> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
@@ -109,12 +170,14 @@ async function fetchCSSFromPage(url: string): Promise<string> {
       })
     )
 
-    return [
+    const css = [
       ...inlineStyles,
       ...externalCSS
         .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
         .map((r) => r.value),
     ].join('\n')
+
+    return { html, css }
   } finally {
     clearTimeout(timer)
   }
@@ -140,15 +203,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Apenas URLs http/https são permitidas' }, { status: 400 })
     }
 
-    const cssText = await fetchCSSFromPage(parsedUrl.toString())
+    const { html, css } = await fetchPageData(parsedUrl.toString())
 
-    if (!cssText.trim()) {
+    if (!css.trim()) {
       return NextResponse.json({ error: 'Nenhum CSS encontrado na URL fornecida' }, { status: 422 })
     }
 
-    const tokens = extractCSSTokens(cssText)
+    const tokens = extractCSSTokens(css)
+    const logo_candidates = extractLogoCandidates(html, parsedUrl.toString())
 
-    return NextResponse.json({ ...tokens, source_url: parsedUrl.toString() } satisfies ExtractedTokens)
+    return NextResponse.json({ ...tokens, logo_candidates, source_url: parsedUrl.toString() } satisfies ExtractedTokens)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('abort') || msg.includes('timeout')) {

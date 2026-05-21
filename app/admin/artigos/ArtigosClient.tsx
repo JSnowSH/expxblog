@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import NewArticleModal from './NewArticleModal'
 import type { Post } from '@/drizzle/schema'
-import type { ArticleGenerationConfig, ArticleVoiceTone, ArticleLanguage } from '@/lib/article-config'
-import { ARTICLE_CONFIG_DEFAULTS } from '@/lib/article-config'
+import type { ArticleGenerationConfig, ArticleVoiceTone, ArticleLanguage } from '@/lib/article-config-types'
+import { ARTICLE_CONFIG_DEFAULTS } from '@/lib/article-config-types'
 
 type SectionId = 'lista' | 'temas' | 'briefing' | 'automacao' | 'prompts' | 'configuracao'
 

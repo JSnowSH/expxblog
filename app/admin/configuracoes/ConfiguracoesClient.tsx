@@ -308,7 +308,7 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram }: Pro
                 <div className="text-sm text-blue-900">
                   <p className="font-medium mb-1">Pronto! Como usar</p>
                   <ul className="list-disc list-inside space-y-1 text-blue-800 text-xs">
-                    <li>Envie um <strong>tema</strong> (ex: <em>"As tendências de tecnologia para 2025"</em>) para gerar um artigo original</li>
+                    <li>Envie um <strong>tema</strong> (ex: <em>&ldquo;As tendências de tecnologia para 2025&rdquo;</em>) para gerar um artigo original</li>
                     <li>Envie um <strong>link</strong> (ex: <em>https://exemplo.com/noticia</em>) para reescrever o conteúdo</li>
                     <li>O bot publica o artigo e devolve o link</li>
                   </ul>

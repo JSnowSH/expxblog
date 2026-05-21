@@ -1,39 +1,15 @@
 import { db } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
+import {
+  ARTICLE_CONFIG_DEFAULTS,
+  type ArticleVoiceTone,
+  type ArticleLanguage,
+  type ArticleGenerationConfig,
+} from '@/lib/article-config-types'
 
-export type ArticleVoiceTone =
-  | 'profissional'
-  | 'informal'
-  | 'tecnico'
-  | 'jornalistico'
-  | 'descontraido'
-
-export type ArticleLanguage = 'pt-BR' | 'en' | 'es'
-
-export interface ArticleGenerationConfig {
-  minWords: number
-  voiceTone: ArticleVoiceTone
-  language: ArticleLanguage
-  creativity: number
-  includeExamples: boolean
-  includeLists: boolean
-  includeQuotes: boolean
-  includeTables: boolean
-  extraInstructions: string
-}
-
-export const ARTICLE_CONFIG_DEFAULTS: ArticleGenerationConfig = {
-  minWords: 800,
-  voiceTone: 'profissional',
-  language: 'pt-BR',
-  creativity: 0.7,
-  includeExamples: false,
-  includeLists: true,
-  includeQuotes: false,
-  includeTables: false,
-  extraInstructions: '',
-}
+export type { ArticleVoiceTone, ArticleLanguage, ArticleGenerationConfig }
+export { ARTICLE_CONFIG_DEFAULTS }
 
 const SETTINGS_KEY = 'article_generation_config'
 
