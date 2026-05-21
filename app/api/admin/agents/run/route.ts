@@ -1,0 +1,34 @@
+import { NextRequest } from 'next/server'
+import { createPipelineStream } from '@/lib/agent-pipeline'
+import { PublisherTriggers } from '@/lib/agents/types'
+
+export const maxDuration = 300
+export const dynamic = 'force-dynamic'
+
+export async function POST(request: NextRequest) {
+  const body = await request.json() as {
+    themeIds?: number[]
+    publishStatus?: 'draft' | 'published'
+    webhookUrl?: string
+    sendNewsletter?: boolean
+  }
+
+  const triggers: PublisherTriggers = {
+    publishStatus: body.publishStatus ?? 'published',
+    webhookUrl: body.webhookUrl,
+    sendNewsletter: body.sendNewsletter ?? false,
+  }
+
+  const stream = createPipelineStream({
+    themeIds: body.themeIds ?? [],
+    triggers,
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  })
+}
