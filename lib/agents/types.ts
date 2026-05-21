@@ -1,0 +1,133 @@
+// lib/agents/types.ts
+
+export type AgentId =
+  | 'headline'
+  | 'researcher'
+  | 'analyst'
+  | 'copywriter'
+  | 'reviewer'
+  | 'cta'
+  | 'designer'
+  | 'publisher'
+
+export interface AgentMeta {
+  id: AgentId
+  label: string
+  description: string
+  defaultPrompt: string
+  defaultModel: string
+  supportsImageModel: boolean
+}
+
+export const AGENT_DEFINITIONS: AgentMeta[] = [
+  {
+    id: 'headline',
+    label: 'Gerador de Headline',
+    description: 'Identifica um tema pendente e elabora o título do artigo.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: `Você é um especialista em headlines para blogs. Receberá um tema e deve criar um título de artigo atraente, com até 80 caracteres, que seja claro, específico e gere curiosidade. Responda APENAS com o título, sem aspas ou pontuação extra.`,
+  },
+  {
+    id: 'researcher',
+    label: 'Pesquisador',
+    description: 'Busca links e referências relevantes na internet sobre o título do artigo.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: `Você é um pesquisador. Dado um título de artigo, gere de 5 a 8 queries de busca em português e inglês para encontrar conteúdos relevantes. Responda em JSON: { "queries": ["query1", "query2", ...] }`,
+  },
+  {
+    id: 'analyst',
+    label: 'Analista',
+    description: 'Lê o conteúdo de cada link encontrado e produz um resumo detalhado.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: `Você é um analista de conteúdo. Receberá o título de um artigo e o texto extraído de uma fonte. Produza um resumo detalhado (200-400 palavras) com os principais pontos, dados e insights relevantes para o artigo. Responda apenas com o resumo em português.`,
+  },
+  {
+    id: 'copywriter',
+    label: 'Copywriter',
+    description: 'Escreve o artigo completo em HTML com base no título e nos resumos.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: `Você é um redator profissional de blogs corporativos. Receberá um título, o tema, o briefing da empresa e resumos de fontes pesquisadas. Escreva um artigo completo, detalhado e envolvente em HTML (use h2, h3, p, strong, em, ul, ol, li, blockquote). Mínimo 800 palavras. Inclua introdução, desenvolvimento com subtítulos e conclusão. Responda em JSON: { "title": "...", "excerpt": "até 160 caracteres", "content": "HTML completo" }`,
+  },
+  {
+    id: 'reviewer',
+    label: 'Revisor',
+    description: 'Verifica ortografia, coerência e conformidade com as regras configuradas.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: `Você é um revisor editorial rigoroso. Analise o artigo recebido verificando: ortografia, gramática, coerência, clareza, estrutura e tom. Se aprovado, responda em JSON: { "approved": true }. Se houver problemas, responda: { "approved": false, "issues": ["problema 1", "problema 2"] }. Seja objetivo e específico.`,
+  },
+  {
+    id: 'cta',
+    label: 'Agente de CTA',
+    description: 'Insere um parágrafo de call-to-action ao final do artigo.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: `Você é um especialista em marketing de conteúdo. Receberá um artigo completo e o briefing da empresa. Crie um parágrafo de call-to-action (CTA) que se conecte naturalmente ao conteúdo do artigo e leve o leitor à ação desejada pela empresa. Responda APENAS com o parágrafo HTML do CTA (use <p> com classes ou <div>), sem explicações.`,
+  },
+  {
+    id: 'designer',
+    label: 'Designer de Capa',
+    description: 'Extrai o melhor prompt de imagem e gera a capa do artigo via IA.',
+    defaultModel: 'openai/gpt-5-image',
+    supportsImageModel: true,
+    defaultPrompt: `Você é um diretor de arte. Receberá o título e o resumo de um artigo. Crie um prompt em inglês para gerar uma imagem de capa profissional e atrativa para blog. O prompt deve descrever: composição visual, estilo (fotorrealista, editorial, ilustração), paleta de cores e elementos visuais chave. Responda APENAS com o prompt em inglês, sem explicações.`,
+  },
+  {
+    id: 'publisher',
+    label: 'Publicador',
+    description: 'Publica o artigo e dispara os gatilhos configurados.',
+    defaultModel: 'openai/gpt-4o-mini',
+    supportsImageModel: false,
+    defaultPrompt: ``,
+  },
+]
+
+export interface AgentContext {
+  themeId?: number
+  themeTitle?: string
+  themeDescription?: string | null
+  briefing?: string
+  headline?: string
+  researchLinks?: string[]
+  sourceSummaries?: { url: string; summary: string }[]
+  articleTitle?: string
+  articleExcerpt?: string
+  articleContent?: string
+  reviewCycles?: number
+  coverImageUrl?: string | null
+  postId?: number
+}
+
+export interface AgentResult {
+  success: boolean
+  message: string
+  data?: Partial<AgentContext>
+  error?: string
+}
+
+export type PipelineEventType =
+  | 'agent_start'
+  | 'agent_done'
+  | 'agent_error'
+  | 'agent_retry'
+  | 'pipeline_done'
+  | 'pipeline_error'
+  | 'log'
+
+export interface PipelineEvent {
+  type: PipelineEventType
+  agent?: AgentId
+  message: string
+  data?: Record<string, unknown>
+  timestamp: string
+}
+
+export interface PublisherTriggers {
+  publishStatus: 'draft' | 'published'
+  webhookUrl?: string
+  sendNewsletter?: boolean
+}
