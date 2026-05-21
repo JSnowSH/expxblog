@@ -5,6 +5,7 @@ import { posts, postCategories, siteSettings } from '@/drizzle/schema'
 import { generateSlug } from '@/lib/slug'
 import sanitizeHtml from 'sanitize-html'
 import { eq } from 'drizzle-orm'
+import { getArticleConfig, buildArticleConfigPromptSection } from '@/lib/article-config'
 
 const sanitizeOptions: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h2', 'h3', 'img']),
@@ -42,20 +43,24 @@ ${briefingContent.slice(0, 8000)}
 Use o contexto acima para garantir que o artigo seja relevante para o negócio, produtos e público-alvo da empresa.`
     }
 
+    const articleConfig = await getArticleConfig()
+    const configSection = buildArticleConfigPromptSection(articleConfig)
+
     const prompt = `Você é um redator profissional especializado em blogs corporativos. Escreva um artigo completo e detalhado sobre:
 
 Título: ${title}
 ${description ? `Descrição/Resumo: ${description}` : ''}
 ${contextSection}
 
-Requisitos:
-- O artigo deve ter pelo menos 800 palavras
+${configSection}
+
+Requisitos técnicos:
+- O artigo deve ter pelo menos ${articleConfig.minWords} palavras
 - Use formatação HTML para estruturar o conteúdo (h2, h3, p, strong, em, ul, ol, li, blockquote)
 - Inclua uma introdução envolvente
 - Desenvolva o conteúdo com subtítulos bem estruturados
 - Termine com uma conclusão
 - O conteúdo deve ser informativo, bem escrito e otimizado para SEO
-- Escreva em português do Brasil
 
 Responda com um JSON válido (sem markdown, sem \`\`\`) com a seguinte estrutura:
 {
@@ -74,7 +79,7 @@ Responda com um JSON válido (sem markdown, sem \`\`\`) com a seguinte estrutura
         },
         { role: 'user', content: prompt },
       ],
-      { temperature: 0.7, max_tokens: 8000 }
+      { temperature: articleConfig.creativity, max_tokens: 8000 }
     )
 
     let articleData: { title: string; excerpt: string; content: string }
