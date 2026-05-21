@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { db } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
 import { getSettings } from '@/lib/settings'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,11 +59,22 @@ const putSchema = z.object({
 })
 
 async function upsertSetting(key: string, value: string) {
-  await db.execute(
-    sql`INSERT INTO site_settings (key, value, updated_at)
-        VALUES (${key}, ${value}, now())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`
-  )
+  const existing = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, key))
+    .limit(1)
+
+  if (existing.length > 0) {
+    await db
+      .update(siteSettings)
+      .set({ value, updated_at: new Date() })
+      .where(eq(siteSettings.key, key))
+  } else {
+    await db
+      .insert(siteSettings)
+      .values({ key, value, updated_at: new Date() })
+  }
 }
 
 export async function GET() {
