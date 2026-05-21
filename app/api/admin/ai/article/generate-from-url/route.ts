@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const prompt = `Você é um redator profissional especializado em blogs de MMA e artes marciais. Com base no conteúdo abaixo extraído de um artigo de referência, escreva um NOVO artigo original (não copie, reescreva com suas próprias palavras e adicione valor).
+    const prompt = `Você é um redator profissional especializado em conteúdo para blogs. Com base no conteúdo abaixo extraído de um artigo de referência, escreva um NOVO artigo original (não copie, reescreva com suas próprias palavras e adicione valor).
 
 Conteúdo de referência:
 ---

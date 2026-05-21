@@ -54,13 +54,13 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
 const SECTIONS: Record<string, { fields: { key: CompanyKey; label: string; type?: string; placeholder?: string; multiline?: boolean }[] }> = {
   blog: {
     fields: [
-      { key: 'blog_name', label: 'Nome do Blog', placeholder: 'Ex: MMA Sistemas Blog' },
+      { key: 'blog_name', label: 'Nome do Blog', placeholder: 'Ex: Meu Blog' },
       { key: 'blog_description', label: 'Descrição do Blog', placeholder: 'Uma breve descrição sobre o blog...', multiline: true },
     ],
   },
   empresa: {
     fields: [
-      { key: 'company_name', label: 'Nome da Empresa', placeholder: 'Ex: MMA Sistemas Ltda' },
+      { key: 'company_name', label: 'Nome da Empresa', placeholder: 'Ex: Minha Empresa Ltda' },
       { key: 'company_cnpj', label: 'CNPJ', placeholder: '00.000.000/0001-00' },
       { key: 'company_email', label: 'E-mail de Contato', type: 'email', placeholder: 'contato@empresa.com.br' },
       { key: 'company_phone', label: 'Telefone', placeholder: '(00) 00000-0000' },
@@ -308,7 +308,7 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram }: Pro
                 <div className="text-sm text-blue-900">
                   <p className="font-medium mb-1">Pronto! Como usar</p>
                   <ul className="list-disc list-inside space-y-1 text-blue-800 text-xs">
-                    <li>Envie um <strong>tema</strong> (ex: <em>"Como o BJJ mudou o MMA"</em>) para gerar um artigo original</li>
+                    <li>Envie um <strong>tema</strong> (ex: <em>"As tendências de tecnologia para 2025"</em>) para gerar um artigo original</li>
                     <li>Envie um <strong>link</strong> (ex: <em>https://exemplo.com/noticia</em>) para reescrever o conteúdo</li>
                     <li>O bot publica o artigo e devolve o link</li>
                   </ul>

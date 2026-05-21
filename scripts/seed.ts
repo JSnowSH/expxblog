@@ -30,7 +30,7 @@ async function seed() {
 
   await db
     .insert(categories)
-    .values({ name: 'Novidades', slug: 'novidades', description: 'Novidades e atualizações da MMA Sistemas' })
+    .values({ name: 'Novidades', slug: 'novidades', description: 'Novidades e atualizações do blog' })
     .onConflictDoNothing()
 
   console.log('✅ Categorias criadas: Tecnologia, Novidades')
@@ -50,14 +50,14 @@ async function seed() {
 
   console.log('✅ Tags criadas: Next.js, React, Web')
 
-  const postSlug = generateSlug('Bem-vindo ao MMA Sistemas Blog')
+  const postSlug = generateSlug('Bem-vindo ao Blog')
   const [examplePost] = await db
     .insert(posts)
     .values({
-      title: 'Bem-vindo ao MMA Sistemas Blog',
+      title: 'Bem-vindo ao Blog',
       slug: postSlug,
-      content: '<h2>Olá, mundo!</h2><p>Este é o blog oficial da MMA Sistemas. Aqui você encontrará artigos sobre tecnologia, gestão e inovação para empresas.</p><p>Nossa missão é compartilhar conhecimento e ajudar pequenas e médias empresas a crescerem com o auxílio da tecnologia.</p>',
-      excerpt: 'Conheça o blog da MMA Sistemas, seu portal de artigos sobre tecnologia, gestão e inovação empresarial.',
+      content: '<h2>Olá, mundo!</h2><p>Este é o blog. Aqui você encontrará artigos sobre tecnologia, gestão e inovação para empresas.</p><p>Nossa missão é compartilhar conhecimento e ajudar pessoas e empresas a crescerem com o auxílio da tecnologia.</p>',
+      excerpt: 'Bem-vindo ao blog, seu portal de artigos sobre tecnologia, gestão e inovação.',
       status: 'published',
       published_at: new Date(),
     })

@@ -36,5 +36,5 @@ export async function verifyApiToken(request: NextRequest): Promise<{ valid: tru
 }
 
 export function generateApiToken(): string {
-  return `mma_${crypto.randomBytes(32).toString('hex')}`
+  return `blog_${crypto.randomBytes(32).toString('hex')}`
 }

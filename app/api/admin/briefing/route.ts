@@ -70,7 +70,7 @@ async function fetchPage(url: string): Promise<string> {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(10000),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; MMABlogBot/1.0)',
+      'User-Agent': 'Mozilla/5.0 (compatible; BlogBot/1.0)',
       Accept: 'text/html',
     },
   })

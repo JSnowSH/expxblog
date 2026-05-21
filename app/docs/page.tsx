@@ -3,7 +3,7 @@ import ApiDocsClient from './ApiDocsClient'
 
 export const metadata: Metadata = {
   title: 'Documentação da API',
-  description: 'Documentação completa da API pública do blog MMA',
+  description: 'Documentação completa da API pública do blog',
 }
 
 export default function DocsPage() {

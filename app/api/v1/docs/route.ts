@@ -1,21 +1,27 @@
 import { NextResponse } from 'next/server'
+import { getSettings } from '@/lib/settings'
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+export const dynamic = 'force-dynamic'
 
-const spec = {
-  openapi: '3.1.0',
-  info: {
-    title: 'MMA Blog API',
-    description: 'API pública para integração com o blog MMA. Permite gerenciar postagens, categorias e tags de forma programática.',
-    version: '1.0.0',
-    contact: {
-      name: 'MMA Blog',
+export async function GET() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const settings = await getSettings()
+  const blogName = settings.company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
+
+  const spec = {
+    openapi: '3.1.0',
+    info: {
+      title: `${blogName} API`,
+      description: `API pública para integração com o ${blogName}. Permite gerenciar postagens, categorias e tags de forma programática.`,
+      version: '1.0.0',
+      contact: {
+        name: blogName,
+      },
     },
-  },
-  servers: [
-    { url: `${baseUrl}/api/v1`, description: 'Servidor atual' },
-  ],
-  components: {
+    servers: [
+      { url: `${baseUrl}/api/v1`, description: 'Servidor atual' },
+    ],
+    components: {
     securitySchemes: {
       BearerAuth: {
         type: 'http',
@@ -486,8 +492,7 @@ const spec = {
       },
     },
   },
-}
+  }
 
-export async function GET() {
   return NextResponse.json(spec)
 }

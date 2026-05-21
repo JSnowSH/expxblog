@@ -46,7 +46,7 @@ export default function LoginPage() {
           <div className="w-12 h-12 bg-brand-primary rounded-xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white text-2xl">📰</span>
           </div>
-          <h1 className="text-xl font-bold text-neutral-900">MMA Sistemas Blog</h1>
+          <h1 className="text-xl font-bold text-neutral-900">{process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog Admin'}</h1>
           <p className="text-gray-500 text-sm mt-1">Área Administrativa</p>
         </div>
 

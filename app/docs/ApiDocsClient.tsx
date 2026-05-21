@@ -271,7 +271,7 @@ export default function ApiDocsClient() {
             </p>
             <div className="mt-4 bg-gray-900 rounded-lg p-4">
               <pre className="text-green-400 text-sm font-mono">
-{`curl -H "Authorization: Bearer mma_seu_token_aqui" \\
+{`curl -H "Authorization: Bearer blog_seu_token_aqui" \\
      ${baseUrl}/api/v1/posts`}
               </pre>
             </div>
@@ -361,7 +361,7 @@ export default function ApiDocsClient() {
                           <div className="bg-gray-900 rounded-lg p-4 overflow-x-auto">
                             <pre className="text-sm font-mono text-gray-300">
                               {`curl -X ${ep.method} ${baseUrl}${ep.path.replace('{id}', '1')} \\
-  -H "Authorization: Bearer mma_seu_token" \\
+  -H "Authorization: Bearer blog_seu_token" \\
   -H "Content-Type: application/json" \\
   -d '${JSON.stringify(getExample(ep.path, ep.method), null, 2)}'`}
                             </pre>
@@ -468,7 +468,7 @@ export default function ApiDocsClient() {
         </section>
 
         <footer className="mt-12 pb-8 text-center text-sm text-gray-400">
-          MMA Blog API v1.0 &mdash; <a href="/admin" className="hover:text-gray-600">Painel Admin</a>
+          Blog API v1.0 &mdash; <a href="/admin" className="hover:text-gray-600">Painel Admin</a>
         </footer>
       </div>
     </div>

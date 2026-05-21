@@ -89,7 +89,7 @@ export async function callOpenRouter(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-      'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'MMA Blog',
+      'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog',
     },
     body: JSON.stringify({
       model: options.model,
@@ -205,7 +205,7 @@ export async function callOpenRouterImage(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
       'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-      'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'MMA Blog',
+      'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog',
     },
     body: JSON.stringify({
       model: resolvedModel,

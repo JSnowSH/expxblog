@@ -262,7 +262,7 @@ export default function AdminApiPage() {
         <div className="text-sm text-gray-600 space-y-2">
           <p>Para acessar os endpoints da API, envie o token no header <code className="bg-gray-200 px-1 rounded">Authorization</code>:</p>
           <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs">
-            {`Authorization: Bearer mma_seu_token_aqui`}
+            {`Authorization: Bearer blog_seu_token_aqui`}
           </pre>
           <p className="mt-3">
             Acesse a <a href="/docs" target="_blank" className="text-brand-primary hover:underline font-medium">documentação completa da API</a> para ver todos os endpoints disponíveis.
