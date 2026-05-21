@@ -3,7 +3,7 @@ import { getAIApiKey } from '@/lib/ai'
 import { runHeadlineAgent } from '@/lib/agents/headline'
 import { runResearcherAgent } from '@/lib/agents/researcher'
 import { runAnalystAgent } from '@/lib/agents/analyst'
-import { runCopywriterAgent } from '@/lib/agents/copywriter'
+import { runCopywriterAgent, runCopywriterRevision } from '@/lib/agents/copywriter'
 import { runReviewerAgent, MAX_REVIEW_CYCLES } from '@/lib/agents/reviewer'
 import { runCtaAgent } from '@/lib/agents/cta'
 import { runDesignerAgent } from '@/lib/agents/designer'
@@ -14,6 +14,7 @@ export interface PipelineOptions {
   themeIds: number[]
   triggers: PublisherTriggers
   initialContext?: Partial<AgentContext>
+  signal?: AbortSignal
 }
 
 function makeEvent(
@@ -39,6 +40,8 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
 
       const ctx: AgentContext = { ...(options.initialContext ?? {}) }
 
+      const aborted = () => options.signal?.aborted ?? false
+
       try {
         const apiKey = await getAIApiKey()
         if (!apiKey) {
@@ -48,6 +51,7 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         }
 
         // 1. Headline — skip if already provided via initialContext
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         if (!ctx.headline) {
           send(makeEvent('agent_start', 'Gerando headline...', 'headline'))
           const headlineResult = await runHeadlineAgent(ctx, options.themeIds, apiKey)
@@ -64,6 +68,7 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         }
 
         // 2. Researcher — seed with initialContext.researchLinks if provided
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         send(makeEvent('agent_start', 'Pesquisando referências na web...', 'researcher'))
         const researchResult = await runResearcherAgent(ctx, apiKey)
         if (!researchResult.success) {
@@ -75,12 +80,14 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         }
 
         // 3. Analyst
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         send(makeEvent('agent_start', 'Analisando fontes...', 'analyst'))
         const analystResult = await runAnalystAgent(ctx, apiKey)
         Object.assign(ctx, analystResult.data ?? {})
         send(makeEvent('agent_done', analystResult.message, 'analyst', { summaries: ctx.sourceSummaries?.length }))
 
-        // 4. Copywriter (+ review loop)
+        // 4. Copywriter (initial draft)
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         send(makeEvent('agent_start', 'Redigindo artigo...', 'copywriter'))
         const copyResult = await runCopywriterAgent(ctx, apiKey)
         if (!copyResult.success) {
@@ -94,8 +101,10 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
 
         // 5. Reviewer loop
         ctx.reviewCycles = 0
-        while (ctx.reviewCycles! < MAX_REVIEW_CYCLES) {
-          send(makeEvent('agent_start', `Revisando artigo (ciclo ${(ctx.reviewCycles ?? 0) + 1})...`, 'reviewer'))
+        while (ctx.reviewCycles < MAX_REVIEW_CYCLES) {
+          if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
+          const cycle = ctx.reviewCycles + 1
+          send(makeEvent('agent_start', `Revisando artigo (ciclo ${cycle})...`, 'reviewer'))
           const reviewResult = await runReviewerAgent(ctx, apiKey)
 
           if (reviewResult.approved) {
@@ -103,32 +112,36 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
             break
           }
 
-          ctx.reviewCycles = (ctx.reviewCycles ?? 0) + 1
-          send(makeEvent('agent_retry', reviewResult.message, 'reviewer', { issues: reviewResult.issues }))
+          ctx.reviewCycles = cycle
+          send(makeEvent('agent_retry', reviewResult.message, 'reviewer', { issues: reviewResult.issues, cycle }))
 
           if (ctx.reviewCycles >= MAX_REVIEW_CYCLES) {
             send(makeEvent('agent_done', 'Limite de revisões atingido, prosseguindo', 'reviewer'))
             break
           }
 
-          // Re-run copywriter with reviewer feedback
-          send(makeEvent('agent_start', 'Corrigindo artigo...', 'copywriter'))
-          const fixPrompt = `Corrija os seguintes problemas no artigo:\n${(reviewResult.issues ?? []).map((i) => `- ${i}`).join('\n')}\n\nArtigo atual:\n${ctx.articleContent}`
-          const fixedCtx: AgentContext = { ...ctx, sourceSummaries: [{ url: 'revisao', summary: fixPrompt }] }
-          const fixResult = await runCopywriterAgent(fixedCtx, apiKey)
+          // Re-run copywriter with targeted corrections only
+          if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
+          send(makeEvent('agent_start', `Corrigindo artigo (ciclo ${cycle})...`, 'copywriter'))
+          const fixResult = await runCopywriterRevision(ctx, reviewResult.issues ?? [], apiKey)
           if (fixResult.success) {
             Object.assign(ctx, fixResult.data)
             send(makeEvent('agent_done', 'Artigo corrigido', 'copywriter'))
+          } else {
+            send(makeEvent('agent_error', fixResult.message, 'copywriter'))
+            break
           }
         }
 
         // 6. CTA
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         send(makeEvent('agent_start', 'Inserindo CTA...', 'cta'))
         const ctaResult = await runCtaAgent(ctx, apiKey)
         if (ctaResult.success) Object.assign(ctx, ctaResult.data)
         send(makeEvent('agent_done', ctaResult.message, 'cta'))
 
         // 7. Designer
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         send(makeEvent('agent_start', 'Gerando imagem de capa...', 'designer'))
         try {
           const designResult = await runDesignerAgent(ctx, apiKey)
@@ -140,6 +153,7 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         }
 
         // 8. Publisher
+        if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         send(makeEvent('agent_start', 'Publicando artigo...', 'publisher'))
         const pubResult = await runPublisherAgent(ctx, options.triggers)
         if (!pubResult.success) {

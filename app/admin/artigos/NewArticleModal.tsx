@@ -78,6 +78,7 @@ export default function NewArticleModal({ open, onClose }: Props) {
   const [pipelineError, setPipelineError] = useState(false)
   const [finalPostId, setFinalPostId] = useState<number | null>(null)
   const logsEndRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -107,6 +108,12 @@ export default function NewArticleModal({ open, onClose }: Props) {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
 
+  function abortPipeline() {
+    abortControllerRef.current?.abort()
+    setPipelineError(true)
+    setError('Pipeline interrompido manualmente.')
+  }
+
   async function runPipeline(body: Record<string, unknown>) {
     setStep('pipeline')
     setLogs([])
@@ -117,11 +124,20 @@ export default function NewArticleModal({ open, onClose }: Props) {
     PIPELINE_AGENT_ORDER.forEach((id) => { init[id] = 'idle' })
     setAgentStatuses(init)
 
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
     const res = await fetch('/api/admin/agents/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ publishStatus: 'draft', ...body }),
+      signal: abortController.signal,
+    }).catch((err) => {
+      if (err.name === 'AbortError') return null
+      throw err
     })
+
+    if (!res) return
 
     if (!res.body) {
       setPipelineError(true)
@@ -398,9 +414,17 @@ export default function NewArticleModal({ open, onClose }: Props) {
 
               {/* Status footer */}
               {isRunning && (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span className="animate-spin inline-block w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full" />
-                  Pipeline em execução, aguarde...
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span className="animate-spin inline-block w-4 h-4 border-2 border-brand-primary border-t-transparent rounded-full" />
+                    Pipeline em execução, aguarde...
+                  </div>
+                  <button
+                    onClick={abortPipeline}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Interromper
+                  </button>
                 </div>
               )}
 

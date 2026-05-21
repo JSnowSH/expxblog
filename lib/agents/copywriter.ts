@@ -66,3 +66,62 @@ Mínimo de ${articleConfig.minWords} palavras. Responda em JSON (sem markdown): 
     },
   }
 }
+
+// Called during the reviewer feedback loop — applies specific corrections to existing content
+export async function runCopywriterRevision(
+  ctx: AgentContext,
+  issues: string[],
+  apiKey: string
+): Promise<AgentResult> {
+  if (!ctx.articleContent) return { success: false, message: 'Artigo não disponível', error: 'NO_CONTENT' }
+
+  const config = await getAgentConfig('copywriter')
+  const articleConfig = await getArticleConfig()
+
+  const issueList = issues.map((i, n) => `${n + 1}. ${i}`).join('\n')
+
+  const userMsg = `Você receberá um artigo HTML que precisa de correções específicas. Aplique APENAS as correções listadas abaixo sem alterar o restante do artigo.
+
+PROBLEMAS A CORRIGIR:
+${issueList}
+
+ARTIGO ATUAL (HTML):
+${ctx.articleContent.slice(0, 12000)}
+
+Responda em JSON (sem markdown): { "title": "${ctx.articleTitle ?? ''}", "excerpt": "${ctx.articleExcerpt ?? ''}", "content": "HTML corrigido" }`
+
+  const resp = await callOpenRouter(
+    {
+      model: config.model,
+      messages: [
+        {
+          role: 'system',
+          content: 'Você é um editor preciso. Recebe um artigo HTML e uma lista de problemas específicos. Corrija APENAS os problemas indicados, preservando todo o restante do conteúdo, estrutura e estilo. Responda em JSON válido.',
+        },
+        { role: 'user', content: userMsg },
+      ],
+      temperature: 0.3,
+      max_tokens: 6000,
+    },
+    apiKey
+  )
+
+  let parsed: { title: string; excerpt: string; content: string }
+  try {
+    const raw = resp.choices[0]?.message?.content ?? ''
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    parsed = JSON.parse(cleaned)
+  } catch {
+    return { success: false, message: 'Erro ao parsear revisão do copywriter', error: 'PARSE_ERROR' }
+  }
+
+  return {
+    success: true,
+    message: 'Artigo corrigido',
+    data: {
+      articleTitle: parsed.title,
+      articleExcerpt: parsed.excerpt,
+      articleContent: parsed.content,
+    },
+  }
+}

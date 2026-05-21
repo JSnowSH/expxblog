@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       ...(body.headline ? { headline: body.headline } : {}),
       ...(body.initialLinks?.length ? { researchLinks: body.initialLinks } : {}),
     },
+    signal: request.signal,
   })
 
   return new Response(stream, {
