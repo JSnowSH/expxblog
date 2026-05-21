@@ -1,6 +1,6 @@
-# MMA Sistemas Blog
+# ExpxBlog
 
-Blog corporativo da MMA Sistemas — Next.js 14 + Drizzle ORM + PostgreSQL (Supabase) + Vercel.
+Plataforma de blog com Next.js 14, Supabase e recursos de IA via OpenRouter. Setup completo pela UI — sem configuração manual de variáveis de ambiente.
 
 ## Stack
 
@@ -13,416 +13,193 @@ Blog corporativo da MMA Sistemas — Next.js 14 + Drizzle ORM + PostgreSQL (Supa
 | Editor de conteúdo | Tiptap (rich text) |
 | IA | OpenRouter — todos os recursos de IA passam por `https://openrouter.ai` |
 | Upload de arquivos | Supabase Storage (bucket `uploads`) |
-| Estilo | Tailwind CSS com design system MMA Sistemas |
+| Estilo | Tailwind CSS |
 | Deploy | Vercel (via integração GitHub) |
 
 ---
 
-## Índice
+## Instalação
 
-1. [Pré-requisitos](#1-pré-requisitos)
-2. [Clonar o repositório](#2-clonar-o-repositório)
-3. [Configurar o Supabase](#3-configurar-o-supabase)
-   - 3.1 Criar projeto
-   - 3.2 Obter credenciais
-   - 3.3 Criar bucket de uploads
-   - 3.4 Configurar RLS no bucket
-4. [Configurar variáveis de ambiente localmente](#4-configurar-variáveis-de-ambiente-localmente)
-5. [Instalar dependências e criar as tabelas](#5-instalar-dependências-e-criar-as-tabelas)
-6. [Popular o banco (seed)](#6-popular-o-banco-seed)
-7. [Executar em desenvolvimento](#7-executar-em-desenvolvimento)
-8. [Configurar a Vercel](#8-configurar-a-vercel)
-   - 8.1 Criar projeto na Vercel
-   - 8.2 Configurar variáveis de ambiente na Vercel
-   - 8.3 Primeiro deploy
-9. [Configurar o painel admin em produção](#9-configurar-o-painel-admin-em-produção)
-   - 9.1 Alterar senha do admin
-   - 9.2 Configurar a chave de API do OpenRouter (IA)
-10. [Comandos úteis](#10-comandos-úteis)
-11. [Estrutura do projeto](#11-estrutura-do-projeto)
-12. [Arquitetura](#12-arquitetura)
+### 1. Pré-requisitos
 
----
-
-## 1. Pré-requisitos
-
-Antes de começar, você precisa ter instalado na sua máquina:
-
-- **Node.js 20** ou superior — [nodejs.org](https://nodejs.org)
-- **npm** (vem com o Node.js)
-- **Git** — [git-scm.com](https://git-scm.com)
-
-Você também precisará de contas (gratuitas) nos serviços:
+Você vai precisar de contas nos serviços:
 
 - **Supabase** — [supabase.com](https://supabase.com) — banco de dados PostgreSQL + armazenamento de arquivos
 - **Vercel** — [vercel.com](https://vercel.com) — hospedagem do Next.js
 - **OpenRouter** *(opcional, necessário para recursos de IA)* — [openrouter.ai](https://openrouter.ai)
 
----
+### 2. Deploy na Vercel
 
-## 2. Clonar o repositório
+1. Faça um fork ou clone deste repositório para sua conta do GitHub.
+2. Acesse [vercel.com](https://vercel.com) → **Add New Project** → importe o repositório.
+3. Não configure nenhuma variável de ambiente — o wizard faz isso.
+4. Clique em **Deploy** e aguarde o build concluir.
 
-```bash
-git clone https://github.com/<seu-usuario>/<seu-repositorio>.git
-cd <seu-repositorio>
-```
+### 3. Configurar o Supabase
 
----
+Antes de rodar o wizard, crie o projeto no Supabase e o bucket de uploads:
 
-## 3. Configurar o Supabase
+#### 3.1 Criar projeto
 
-### 3.1 Criar projeto
+1. Acesse [supabase.com](https://supabase.com) → **New project**.
+2. Preencha nome, senha do banco e região. Aguarde o provisionamento (~2 min).
 
-1. Acesse [supabase.com](https://supabase.com) e faça login.
-2. Clique em **New project**.
-3. Preencha:
-   - **Organization**: selecione sua organização (ou crie uma).
-   - **Name**: nome do projeto (ex.: `mma-blog`).
-   - **Database Password**: anote essa senha — você vai precisar dela.
-   - **Region**: escolha a região mais próxima dos seus usuários (ex.: `South America (São Paulo)`).
-4. Clique em **Create new project** e aguarde o provisionamento (~2 minutos).
+#### 3.2 Obter credenciais
 
-### 3.2 Obter credenciais
+Você vai precisar de três valores do Supabase:
 
-Você vai precisar de quatro informações do Supabase:
+**Database URL** (`Project Settings → Database → Connection string → URI`)
+- Use a connection string do **pooler** na porta **6543**:
+  ```
+  postgresql://postgres.[ref]:[senha]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres
+  ```
 
-#### Connection String (DATABASE_URL)
+**Supabase URL** (`Project Settings → API → Project URL`)
+- Formato: `https://xxxxxxxxxxxx.supabase.co`
 
-1. No painel do projeto, vá em **Project Settings** → **Database**.
-2. Role até a seção **Connection string**.
-3. Selecione a aba **URI**.
-4. Copie a string que começa com `postgresql://postgres:...`.
-   - Substitua `[YOUR-PASSWORD]` pela senha definida na criação do projeto.
-5. **Importante:** troque a porta para `6543` (pooler, obrigatório na Vercel):
-   ```
-   postgresql://postgres.[ref]:[senha]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres
-   ```
-   > A porta `5432` funciona localmente mas pode causar problemas na Vercel (ambiente serverless). Use sempre `6543`.
+**Service Role Key** (`Project Settings → API → service_role`)
+- Clique em "Reveal" para exibir. Nunca exponha essa chave no frontend.
 
-#### URL do projeto (NEXT_PUBLIC_SUPABASE_URL)
+#### 3.3 Criar bucket de uploads
 
-1. Vá em **Project Settings** → **API**.
-2. Copie o valor em **Project URL** (formato `https://xxxxxxxxxxxx.supabase.co`).
+1. Vá em **Storage** → **New bucket**.
+2. Nome: `uploads`. Marque como **Public bucket**.
+3. Em **Storage → Policies**, adicione duas políticas no bucket `uploads`:
+   - `INSERT` com target `service_role` e definição `true`
+   - `SELECT` sem target (público) e definição `true`
 
-#### Service Role Key (SUPABASE_SERVICE_ROLE_KEY)
+> Alternativa rápida: clique em **Disable RLS** no bucket — adequado para projetos internos.
 
-1. Ainda em **Project Settings** → **API**.
-2. Em **Project API keys**, copie o valor de **service_role** (clique em "Reveal").
-   > ⚠️ Nunca exponha essa chave no frontend. Ela só é usada no servidor.
+### 4. Wizard de instalação
 
-### 3.3 Criar bucket de uploads
+1. Acesse o deploy na Vercel (ex.: `https://seu-projeto.vercel.app/admin`).
+2. O sistema detecta que não está configurado e redireciona para `/setup`.
+3. Siga os 6 steps do wizard:
 
-O blog salva imagens e arquivos no Supabase Storage.
+| Step | O que fazer |
+|------|-------------|
+| **1 — Vercel** | Gere um Access Token em `vercel.com/account/tokens` e cole aqui |
+| **2 — Supabase** | Cole as três credenciais do Supabase e clique em "Testar conexão" |
+| **3 — Banco de dados** | Automático — o wizard cria todas as tabelas |
+| **4 — Administrador** | Defina nome, email e senha do usuário master |
+| **5 — Finalizando** | Automático — o wizard salva as env vars na Vercel e inicia um redeploy |
+| **6 — Concluído** | Clique em "Acessar o painel" |
 
-1. No painel do projeto, vá em **Storage**.
-2. Clique em **New bucket**.
-3. Preencha:
-   - **Name**: `uploads`
-   - **Public bucket**: ✅ marque como público (necessário para servir as imagens no blog).
-4. Clique em **Save**.
-
-### 3.4 Configurar RLS no bucket
-
-Por padrão o Supabase cria políticas de RLS que bloqueiam uploads. Você precisa liberar o upload via service role:
-
-1. Em **Storage** → **Policies**, selecione o bucket `uploads`.
-2. Clique em **New policy** → **For full customization**.
-3. Crie uma política com as seguintes configurações:
-   - **Policy name**: `Allow service role uploads`
-   - **Allowed operation**: `INSERT`
-   - **Target roles**: `service_role`
-   - **Policy definition**: `true`
-4. Repita para a operação `SELECT` (para leitura pública):
-   - **Policy name**: `Allow public reads`
-   - **Allowed operation**: `SELECT`
-   - **Target roles**: *(deixe vazio para público)*
-   - **Policy definition**: `true`
-
-> Alternativa mais rápida: desabilite RLS no bucket clicando em **Disable RLS** — adequado para projetos internos onde a chave service_role já controla o acesso.
+Após o wizard, o blog está pronto para uso. Não é necessário nenhum passo manual.
 
 ---
 
-## 4. Configurar variáveis de ambiente localmente
+## Desenvolvimento local
 
-Na raiz do projeto, copie o arquivo de exemplo:
+Para rodar localmente, configure o `.env` manualmente:
 
 ```bash
 cp .env.example .env
-```
-
-Abra o `.env` e preencha cada variável:
-
-```env
-# ─── BANCO DE DADOS ──────────────────────────────────────────────────────────
-# Connection string do Supabase (porta 6543 = pooler, obrigatório na Vercel)
-DATABASE_URL=postgresql://postgres.[ref]:[senha]@aws-0-sa-east-1.pooler.supabase.com:6543/postgres
-
-# ─── AUTENTICAÇÃO ────────────────────────────────────────────────────────────
-# Mínimo 32 caracteres. Gere com: openssl rand -base64 32
-JWT_SECRET=cole-aqui-uma-string-aleatoria-de-32-ou-mais-caracteres
-
-# ─── APLICAÇÃO ───────────────────────────────────────────────────────────────
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_BLOG_NAME=MMA Sistemas Blog
-NODE_ENV=development
-
-# ─── SUPABASE STORAGE ────────────────────────────────────────────────────────
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...sua-service-role-key...
-
-# ─── AUTOMAÇÃO (CRON) ────────────────────────────────────────────────────────
-# Gere com: openssl rand -base64 32
-CRON_SECRET=cole-aqui-outro-segredo-aleatorio
-```
-
-**Dica para gerar strings aleatórias seguras:**
-
-```bash
-# No macOS / Linux:
-openssl rand -base64 32
-
-# No Windows (PowerShell):
-[Convert]::ToBase64String((1..32 | ForEach-Object { [byte](Get-Random -Max 256) }))
-```
-
-> A chave de API do OpenRouter (IA) **não** vai em variável de ambiente. Ela é configurada diretamente pelo painel admin em **Configurações → IA** após o primeiro login.
-
----
-
-## 5. Instalar dependências e criar as tabelas
-
-```bash
-# Instalar pacotes
+# edite o .env com suas credenciais do Supabase
 npm install
-
-# Aplicar todas as migrações no banco (cria as tabelas)
-npm run db:migrate
-```
-
-O comando `db:migrate` aplica as migrações em `drizzle/migrations/` em ordem. Ele cria as seguintes tabelas:
-
-| Tabela | Descrição |
-|--------|-----------|
-| `users` | Usuários admin |
-| `posts` | Artigos do blog |
-| `categories` | Categorias |
-| `tags` | Tags |
-| `post_categories` | Relação post ↔ categoria |
-| `post_tags` | Relação post ↔ tag |
-| `site_settings` | Configurações do blog (chave/valor) |
-| `api_tokens` | Tokens de API externos |
-| `page_views` | Analytics de visualizações |
-| `newsletter_subscribers` | Assinantes de newsletter |
-| `article_themes` | Temas para geração de artigos via IA |
-| `automation_config` | Configuração de automação de artigos |
-
----
-
-## 6. Popular o banco (seed)
-
-```bash
-npm run db:seed
-```
-
-Esse comando cria:
-- Um usuário admin padrão
-- Categorias e tags de exemplo
-- Um artigo de exemplo
-
-**Credenciais padrão após o seed:**
-
-| Campo | Valor |
-|-------|-------|
-| URL admin | `/admin/login` |
-| Email | `admin@blog.com` |
-| Senha | `admin123` |
-
-> ⚠️ **Troque a senha imediatamente após o primeiro acesso em produção.**
-
----
-
-## 7. Executar em desenvolvimento
-
-```bash
 npm run dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000).
+Acesse [http://localhost:3000](http://localhost:3000). O painel admin está em `/admin`.
 
-O painel administrativo está em [http://localhost:3000/admin/login](http://localhost:3000/admin/login).
-
----
-
-## 8. Configurar a Vercel
-
-### 8.1 Criar projeto na Vercel
-
-1. Acesse [vercel.com](https://vercel.com) e faça login.
-2. Clique em **Add New…** → **Project**.
-3. Em **Import Git Repository**, conecte sua conta do GitHub (se ainda não conectou) e selecione o repositório do blog.
-4. Clique em **Import**.
-5. Na tela de configuração:
-   - **Framework Preset**: a Vercel detecta automaticamente como *Next.js* — não mude nada.
-   - **Root Directory**: deixe em branco (raiz do repositório).
-   - **Build Command**: deixe o padrão (`next build`).
-   - **Output Directory**: deixe o padrão (`.next`).
-6. **Não clique em Deploy ainda** — primeiro configure as variáveis de ambiente (próximo passo).
-
-### 8.2 Configurar variáveis de ambiente na Vercel
-
-Ainda na tela de configuração (ou depois em **Settings** → **Environment Variables**), adicione cada variável:
-
-| Nome | Valor | Ambientes |
-|------|-------|-----------|
-| `DATABASE_URL` | Connection string do Supabase com porta **6543** | Production, Preview, Development |
-| `JWT_SECRET` | String aleatória ≥ 32 caracteres | Production, Preview, Development |
-| `NEXT_PUBLIC_APP_URL` | URL do seu site em produção, ex.: `https://blog.mmasistemas.com.br` | Production |
-| `NEXT_PUBLIC_APP_URL` | URL de preview gerada pela Vercel, ex.: `https://mma-blog.vercel.app` | Preview |
-| `NEXT_PUBLIC_BLOG_NAME` | Nome do blog, ex.: `MMA Sistemas Blog` | Production, Preview, Development |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL do projeto Supabase | Production, Preview, Development |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key do Supabase | Production, Preview, Development |
-| `CRON_SECRET` | String aleatória ≥ 32 caracteres (mesma do `.env` local) | Production, Preview, Development |
-
-> **Como adicionar:** em cada campo, cole o nome, o valor e marque os ambientes desejados. Clique em **Save** após cada uma (ou use **Add** e salve no final).
-
-### 8.3 Primeiro deploy
-
-Após salvar todas as variáveis:
-
-1. Clique em **Deploy** (ou vá em **Deployments** → **Redeploy**).
-2. Aguarde o build (normalmente 1–3 minutos).
-3. Quando o status ficar verde (**Ready**), clique na URL de produção para verificar.
-
-**A partir de agora, todo `git push origin master` dispara um novo deploy automático.** Não use `vercel deploy` manualmente.
+> Em ambiente local, `DATABASE_URL` no `.env` já satisfaz a verificação do middleware — o wizard não aparece.
 
 ---
 
-## 9. Configurar o painel admin em produção
+## Configurar a IA (OpenRouter)
 
-### 9.1 Alterar senha do admin
+Os recursos de IA (geração de artigos, títulos, SEO, imagens) exigem uma chave do OpenRouter — configurada pelo painel, sem variável de ambiente:
 
-1. Acesse `https://seu-dominio.com/admin/login`.
-2. Entre com `admin@blog.com` / `admin123`.
-3. Vá em **Configurações** → **Conta** e troque a senha para uma senha forte.
-
-### 9.2 Configurar a chave de API do OpenRouter (IA)
-
-Os recursos de IA (geração de artigos, sugestão de títulos, SEO, etc.) exigem uma chave do OpenRouter.
-
-1. Crie uma conta em [openrouter.ai](https://openrouter.ai).
-2. Vá em [openrouter.ai/keys](https://openrouter.ai/keys) e gere uma chave de API.
-3. No painel admin do blog, vá em **Configurações** → **IA (OpenRouter)**.
-4. Cole a chave no campo **Chave de API** e salve.
-5. Opcionalmente, escolha o modelo padrão para cada recurso (geração de conteúdo, títulos, SEO, etc.).
+1. Crie uma chave em [openrouter.ai/keys](https://openrouter.ai/keys).
+2. No painel admin, vá em **Configurações → IA (OpenRouter)**.
+3. Cole a chave e salve.
+4. Escolha o modelo por recurso conforme necessário.
 
 ---
 
-## 10. Comandos úteis
+## Comandos úteis
 
 ```bash
-# Desenvolvimento
-npm run dev              # Servidor de desenvolvimento (http://localhost:3000)
+npm run dev          # Servidor de desenvolvimento (http://localhost:3000)
+npm run build        # Build de produção
+npm run lint         # ESLint
 
-# Build e produção
-npm run build            # Build de produção
-npm run start            # Servidor de produção (após build)
-npm run lint             # Verifica erros de lint (ESLint)
-
-# Banco de dados
-npm run db:migrate       # Aplica migrações pendentes no banco
-npm run db:generate      # Gera novas migrações a partir de mudanças no schema
-npm run db:studio        # Abre o Drizzle Studio (GUI visual do banco)
-npm run db:seed          # Popula o banco com dados iniciais
+npm run db:generate  # Gera migrations a partir de mudanças no schema
+npm run db:migrate   # Aplica migrations pendentes no banco
+npm run db:studio    # Drizzle Studio — GUI visual do banco
+npm run db:seed      # Popula o banco com dados de exemplo (só para dev local)
 ```
 
-**Drizzle Studio** é uma interface visual para inspecionar e editar dados diretamente no banco. Execute `npm run db:studio` e acesse o link exibido no terminal.
+> Em produção, as tabelas são criadas pelo wizard. `db:migrate` e `db:seed` são para desenvolvimento local.
 
 ---
 
-## 11. Estrutura do projeto
+## Estrutura do projeto
 
 ```
-mma-blog/
 ├── app/
-│   ├── (public)/              # Blog público (sem proteção)
-│   │   ├── page.tsx           # Home — listagem de artigos
-│   │   ├── [slug]/            # Artigo individual
-│   │   ├── categoria/[slug]/  # Filtro por categoria
-│   │   ├── tag/[slug]/        # Filtro por tag
-│   │   └── busca/             # Busca full-text
+│   ├── (public)/              # Blog público
 │   ├── admin/                 # Painel administrativo (protegido por JWT)
-│   │   ├── login/             # Tela de login
-│   │   ├── artigos/           # CRUD de artigos + editor Tiptap
-│   │   ├── categorias/        # CRUD de categorias
-│   │   ├── tags/              # CRUD de tags
-│   │   ├── newsletter/        # Gerenciamento de assinantes
-│   │   ├── analytics/         # Dashboard de analytics
-│   │   ├── api/               # Gerenciamento de tokens de API
-│   │   └── configuracoes/     # Configurações gerais, IA e automação
-│   └── api/                   # API Routes (REST)
-│       ├── posts/             # Endpoints públicos de posts
-│       ├── categories/        # Endpoints públicos de categorias
-│       ├── tags/              # Endpoints públicos de tags
-│       └── admin/             # Endpoints protegidos (requerem JWT)
+│   ├── setup/                 # Wizard de instalação
+│   └── api/
+│       ├── admin/             # Endpoints protegidos
+│       ├── setup/             # Endpoints do wizard (bloqueados após instalação)
+│       └── v1/                # API pública com autenticação por token
 ├── components/
-│   └── blog/
-│       └── TiptapEditor.tsx   # Editor de rich text
+│   ├── blog/                  # Componentes do blog público
+│   ├── layout/                # Headers e footers por template
+│   └── ui/                    # Componentes reutilizáveis
 ├── drizzle/
-│   ├── schema.ts              # Definição das tabelas (Drizzle ORM)
+│   ├── schema.ts              # Definição das tabelas
 │   ├── db.ts                  # Conexão com o banco
-│   └── migrations/            # Arquivos SQL gerados pelo Drizzle
+│   ├── setup-sql.ts           # SQL de criação das tabelas (usado pelo wizard)
+│   └── migrations/            # Migrations geradas pelo Drizzle (uso local)
 ├── lib/
 │   ├── ai.ts                  # Integração com OpenRouter
 │   ├── auth.ts                # JWT: assinar e verificar tokens
-│   ├── settings.ts            # Leitura/escrita de configurações (site_settings)
-│   ├── slug.ts                # Geração de slugs a partir de títulos
+│   ├── settings.ts            # Configurações (site_settings)
 │   ├── supabase-admin.ts      # Cliente Supabase para o servidor
-│   └── automation.ts          # Lógica de automação de artigos com IA
-├── scripts/
-│   └── seed.ts                # Script de seed do banco
-├── middleware.ts              # Proteção das rotas /admin e /api/admin
-├── next.config.js             # Config do Next.js (domínios de imagem permitidos)
-├── drizzle.config.ts          # Config do Drizzle ORM
-├── tailwind.config.ts         # Config do Tailwind CSS
-└── .env.example               # Template de variáveis de ambiente
+│   └── automation.ts          # Automação de artigos com IA
+├── middleware.ts               # Proteção das rotas + detecção do wizard
+└── .env.example               # Template de variáveis (para dev local)
 ```
 
 ---
 
-## 12. Arquitetura
+## Arquitetura
+
+### Middleware e wizard
+
+`middleware.ts` verifica `DATABASE_URL` antes de qualquer checagem de autenticação:
+- Se ausente → redireciona `/admin/*` para `/setup`
+- Se presente → bloqueia `/setup` e segue o fluxo normal de autenticação
+
+As rotas `/api/setup/*` retornam 403 automaticamente se `DATABASE_URL` já estiver definida, impedindo que o wizard seja executado mais de uma vez.
 
 ### Autenticação
 
-- Login via `POST /api/admin/auth/login` — valida email/senha com bcrypt, retorna um JWT assinado.
 - JWT armazenado em cookie `httpOnly` com duração de 24h.
-- `middleware.ts` intercepta todas as requisições para `/admin/*` e `/api/admin/*`, verifica o JWT e injeta `x-user-id` e `x-user-email` nos headers.
 - Login tem rate limiting: 5 tentativas por IP a cada 15 minutos.
+- `JWT_SECRET` e `CRON_SECRET` são gerados automaticamente pelo wizard com `crypto.randomBytes`.
 
 ### Banco de dados
 
 - Schema em `drizzle/schema.ts` com tipagem TypeScript completa.
-- Conexão via driver `postgres` com `max: 1` e `prepare: false` — configuração necessária para ambientes serverless (Vercel).
-- Migrações versionadas em `drizzle/migrations/` — nunca modifique manualmente os arquivos de migração.
-
-### Conteúdo
-
-- Artigos são escritos no editor Tiptap e salvos como HTML.
-- Na gravação, o HTML é sanitizado com `sanitize-html` para prevenir XSS.
-- Slugs são gerados automaticamente a partir do título via `lib/slug.ts`.
+- Conexão via driver `postgres` com `max: 1` e `prepare: false` — necessário para ambientes serverless.
+- Em produção, tabelas são criadas pelo wizard via `drizzle/setup-sql.ts` (SQL direto, sem CLI).
 
 ### IA (OpenRouter)
 
-- **Toda** chamada de IA passa por `lib/ai.ts` → `callOpenRouter()`. Nunca chame provedores diretamente.
-- A chave de API e os modelos por recurso são armazenados na tabela `site_settings`, configuráveis pelo painel admin.
-- Recursos disponíveis: geração de conteúdo, sugestão de títulos, geração de excerpts, otimização SEO, descrição de imagens, sumarização, geração de briefings, sugestão de temas e geração de imagens.
+- Toda chamada de IA passa por `lib/ai.ts` → `callOpenRouter()`.
+- Chave de API e modelos por recurso armazenados na tabela `site_settings`, configuráveis pelo painel admin.
 
 ### Upload de arquivos
 
-- Uploads vão para o bucket `uploads` no Supabase Storage via `lib/supabase-admin.ts`.
-- Imagens externas são permitidas de: `imgur.com`, `cloudinary.com`, `unsplash.com`, `supabase.co`.
+- Uploads vão para o bucket `uploads` no Supabase Storage.
+- Imagens externas permitidas de: `imgur.com`, `cloudinary.com`, `unsplash.com`, `supabase.co`.
 
 ---
 
 ## Licença
 
-Proprietário — MMA Sistemas © 2026
+MIT
