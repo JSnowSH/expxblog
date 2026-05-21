@@ -160,7 +160,10 @@ export async function PUT(request: Request) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const code = (err as Record<string, unknown>)?.code
-    console.error('[settings PUT] error msg:', msg, 'code:', code)
-    return NextResponse.json({ error: 'Erro interno do servidor', detail: msg }, { status: 500 })
+    const stack = err instanceof Error ? err.stack?.slice(0, 300) : ''
+    console.error('SETTINGS_ERR_MSG=' + msg)
+    console.error('SETTINGS_ERR_CODE=' + code)
+    console.error('SETTINGS_ERR_STACK=' + stack)
+    return NextResponse.json({ error: msg || 'Erro interno do servidor' }, { status: 500 })
   }
 }
