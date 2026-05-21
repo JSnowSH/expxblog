@@ -8,7 +8,36 @@ import { runReviewerAgent, MAX_REVIEW_CYCLES } from '@/lib/agents/reviewer'
 import { runCtaAgent } from '@/lib/agents/cta'
 import { runDesignerAgent } from '@/lib/agents/designer'
 import { runPublisherAgent } from '@/lib/agents/publisher'
+import { getAgentConfig, upsertAgentConfig } from '@/lib/agent-configs'
 import { AgentContext, AgentId, PipelineEvent, PublisherTriggers } from '@/lib/agents/types'
+
+const LEARNING_MARKER = '\n\n--- ERROS RECORRENTES (aprender a evitar) ---'
+const MAX_LEARNING_ITEMS = 10
+
+async function appendLearningToPrompt(issues: string[]): Promise<void> {
+  if (issues.length === 0) return
+  try {
+    const config = await getAgentConfig('copywriter')
+    const markerIdx = config.prompt.indexOf(LEARNING_MARKER)
+    const basePrompt = markerIdx >= 0 ? config.prompt.slice(0, markerIdx) : config.prompt
+
+    // Extract existing learned items
+    const existing: string[] = markerIdx >= 0
+      ? config.prompt.slice(markerIdx + LEARNING_MARKER.length).split('\n').map(s => s.replace(/^- /, '').trim()).filter(Boolean)
+      : []
+
+    // Merge, deduplicate, cap at MAX_LEARNING_ITEMS
+    const merged = [...existing]
+    for (const issue of issues) {
+      if (!merged.some(e => e.toLowerCase().includes(issue.toLowerCase().slice(0, 30)))) {
+        merged.push(issue)
+      }
+    }
+    const capped = merged.slice(-MAX_LEARNING_ITEMS)
+    const newPrompt = basePrompt + LEARNING_MARKER + '\n' + capped.map(i => `- ${i}`).join('\n')
+    await upsertAgentConfig('copywriter', { prompt: newPrompt })
+  } catch {}
+}
 
 export interface PipelineOptions {
   themeIds: number[]
@@ -105,6 +134,8 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         // 5. Reviewer loop
         ctx.reviewCycles = 0
         let reviewCycles = 0
+        const persistentIssues: string[] = []
+        let lastIssues: string[] = []
         while (reviewCycles < MAX_REVIEW_CYCLES) {
           if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
           const cycle = reviewCycles + 1
@@ -116,11 +147,16 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
             break
           }
 
+          lastIssues = reviewResult.issues ?? []
           reviewCycles = cycle
           ctx.reviewCycles = reviewCycles
-          send(makeEvent('agent_retry', reviewResult.message, 'reviewer', { issues: reviewResult.issues, cycle }))
+          send(makeEvent('agent_retry', reviewResult.message, 'reviewer', { issues: lastIssues, cycle }))
 
           if (reviewCycles >= MAX_REVIEW_CYCLES) {
+            // Issues that persisted to the last cycle are candidates for learning
+            for (const issue of lastIssues) {
+              if (!persistentIssues.includes(issue)) persistentIssues.push(issue)
+            }
             send(makeEvent('agent_done', 'Limite de revisões atingido, prosseguindo', 'reviewer'))
             break
           }
@@ -128,7 +164,7 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
           // Re-run copywriter with targeted corrections only
           if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
           send(makeEvent('agent_start', `Corrigindo artigo (ciclo ${cycle})...`, 'copywriter'))
-          const fixResult = await runCopywriterRevision(ctx, reviewResult.issues ?? [], apiKey)
+          const fixResult = await runCopywriterRevision(ctx, lastIssues, apiKey)
           if (fixResult.success) {
             Object.assign(ctx, fixResult.data)
             send(makeEvent('agent_done', 'Artigo corrigido', 'copywriter'))
@@ -136,6 +172,12 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
             send(makeEvent('agent_error', fixResult.message, 'copywriter'))
             break
           }
+        }
+
+        // Append persistent issues to copywriter prompt for future articles
+        if (persistentIssues.length > 0) {
+          await appendLearningToPrompt(persistentIssues)
+          send(makeEvent('log', `Aprendizado registrado: ${persistentIssues.length} padrão(ões) adicionado(s) ao prompt do copywriter`))
         }
 
         // 6. CTA
