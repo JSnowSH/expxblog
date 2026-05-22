@@ -59,6 +59,7 @@ export interface OpenRouterOptions {
   temperature?: number
   max_tokens?: number
   top_p?: number
+  signal?: AbortSignal
 }
 
 export interface OpenRouterResponse {
@@ -85,8 +86,14 @@ export async function callOpenRouter(
     throw new Error('Chave de API do OpenRouter não configurada. Configure em Configurações → IA.')
   }
 
+  const timeout = AbortSignal.timeout(120_000)
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeout])
+    : timeout
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
+    signal,
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
@@ -203,6 +210,7 @@ export async function callOpenRouterImage(
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(180_000),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
