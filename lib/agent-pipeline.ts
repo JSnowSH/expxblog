@@ -83,7 +83,9 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
         if (!ctx.headline) {
           send(makeEvent('agent_start', 'Gerando headline...', 'headline'))
-          const headlineResult = await runHeadlineAgent(ctx, options.themeIds, apiKey)
+          const headlineResult = await runHeadlineAgent(ctx, options.themeIds, apiKey, (msg) =>
+            send(makeEvent('log', `[headline] ${msg}`))
+          )
           if (!headlineResult.success) {
             send(makeEvent('agent_error', headlineResult.message, 'headline'))
             send(makeEvent('pipeline_error', headlineResult.message))

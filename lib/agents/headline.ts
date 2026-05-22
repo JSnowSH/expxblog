@@ -9,8 +9,10 @@ import { AgentContext, AgentResult } from '@/lib/agents/types'
 export async function runHeadlineAgent(
   ctx: AgentContext,
   themeIds: number[],
-  apiKey: string
+  apiKey: string,
+  log?: (msg: string) => void
 ): Promise<AgentResult> {
+  log?.('buscando tema no banco...')
   // Pick pending theme
   let rows
   if (themeIds.length > 0) {
@@ -34,9 +36,11 @@ export async function runHeadlineAgent(
   }
 
   const theme = rows[0]
+  log?.(`tema encontrado: "${theme.title}" — carregando config do agente...`)
   const config = await getAgentConfig('headline')
 
   // Load briefing
+  log?.('carregando briefing...')
   let briefing = ''
   try {
     const bRows = await db.select().from(siteSettings).where(eq(siteSettings.key, 'briefing_content')).limit(1)
@@ -45,6 +49,7 @@ export async function runHeadlineAgent(
 
   const userMsg = `Tema: ${theme.title}${theme.description ? `\nDescrição: ${theme.description}` : ''}${briefing ? `\n\nContexto da empresa:\n${briefing.slice(0, 2000)}` : ''}`
 
+  log?.('chamando OpenRouter...')
   const resp = await callOpenRouter(
     {
       model: config.model,
