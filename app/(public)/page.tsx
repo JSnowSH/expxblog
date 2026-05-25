@@ -6,7 +6,7 @@ import { HeroPost } from '@/components/blog/HeroPost'
 import { EditorialGrid } from '@/components/blog/EditorialGrid'
 import { Pagination } from '@/components/ui/Pagination'
 import { getSettings } from '@/lib/settings'
-import { getAppUrl } from '@/lib/app-url'
+import { getPostsPage, getAllCategories } from '@/lib/db-queries'
 import { FeaturedSection } from '@/components/blog/FeaturedSection'
 import { PostCardBusiness } from '@/components/blog/PostCardBusiness'
 import { CategorySection } from '@/components/blog/CategorySection'
@@ -26,23 +26,6 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-async function getPosts(searchParams: Record<string, string>) {
-  const params = new URLSearchParams(searchParams)
-  const res = await fetch(
-    `${getAppUrl()}/api/posts?${params.toString()}`,
-    { cache: 'no-store' }
-  )
-  if (!res.ok) return { posts: [], total: 0, page: 1, pages: 1 }
-  return res.json()
-}
-
-async function getCategories() {
-  const res = await fetch(`${getAppUrl()}/api/categories`, {
-    next: { revalidate: 300 },
-  })
-  if (!res.ok) return { categories: [] }
-  return res.json()
-}
 
 type NewsPost = {
   id: number
@@ -113,8 +96,8 @@ export default async function HomePage({
     template === 'tech' ? '0' :
     '9'
   const [postsData, categoriesData] = await Promise.all([
-    getPosts({ page: searchParams.page ?? '1', limit: pageLimit, ...searchParams }),
-    getCategories(),
+    getPostsPage({ page: searchParams.page, limit: pageLimit, category: searchParams.category, tag: searchParams.tag }),
+    getAllCategories().then((cats) => ({ categories: cats })),
   ])
 
   if (template === 'portal') {

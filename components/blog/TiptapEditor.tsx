@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
+import { useState, useRef, useEffect } from 'react'
 
 interface TiptapEditorProps {
   content: string
@@ -10,6 +11,9 @@ interface TiptapEditorProps {
 }
 
 export default function TiptapEditor({ content, onChange }: TiptapEditorProps) {
+  const [linkPopover, setLinkPopover] = useState<{ visible: boolean; url: string }>({ visible: false, url: '' })
+  const linkInputRef = useRef<HTMLInputElement>(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -19,7 +23,32 @@ export default function TiptapEditor({ content, onChange }: TiptapEditorProps) {
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   })
 
+  useEffect(() => {
+    if (linkPopover.visible) linkInputRef.current?.focus()
+  }, [linkPopover.visible])
+
   if (!editor) return null
+
+  const openLinkPopover = () => {
+    const currentHref = editor.getAttributes('link').href ?? ''
+    setLinkPopover({ visible: true, url: currentHref })
+  }
+
+  const applyLink = () => {
+    const url = linkPopover.url.trim()
+    if (!url) {
+      editor.chain().focus().unsetLink().run()
+    } else {
+      const href = url.startsWith('http') ? url : `https://${url}`
+      editor.chain().focus().setLink({ href, target: '_blank', rel: 'noopener noreferrer' }).run()
+    }
+    setLinkPopover({ visible: false, url: '' })
+  }
+
+  const removeLink = () => {
+    editor.chain().focus().unsetLink().run()
+    setLinkPopover({ visible: false, url: '' })
+  }
 
   const toolbarButtons = [
     { label: 'B', action: () => editor.chain().focus().toggleBold().run(), active: editor.isActive('bold'), title: 'Negrito' },
@@ -47,6 +76,53 @@ export default function TiptapEditor({ content, onChange }: TiptapEditorProps) {
             {btn.label}
           </button>
         ))}
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={openLinkPopover}
+            title="Link"
+            className={`px-2.5 py-1 text-sm font-medium rounded transition-colors ${
+              editor.isActive('link') ? 'bg-brand-primary text-white' : 'text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            🔗
+          </button>
+
+          {linkPopover.visible && (
+            <div className="absolute top-full left-0 mt-1 z-10 bg-white border border-gray-300 rounded-lg shadow-lg p-2 flex gap-1 min-w-64">
+              <input
+                ref={linkInputRef}
+                type="url"
+                value={linkPopover.url}
+                onChange={e => setLinkPopover(p => ({ ...p, url: e.target.value }))}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') applyLink()
+                  if (e.key === 'Escape') setLinkPopover({ visible: false, url: '' })
+                }}
+                placeholder="https://exemplo.com"
+                className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-primary"
+              />
+              <button
+                type="button"
+                onClick={applyLink}
+                className="px-2 py-1 text-sm bg-brand-primary text-white rounded hover:opacity-90"
+              >
+                OK
+              </button>
+              {editor.isActive('link') && (
+                <button
+                  type="button"
+                  onClick={removeLink}
+                  className="px-2 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  title="Remover link"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       <EditorContent editor={editor} className="prose max-w-none p-4 min-h-48 focus:outline-none" />
     </div>

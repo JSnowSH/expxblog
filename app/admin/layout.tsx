@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { verifyToken } from '@/lib/auth'
 import { getSettings } from '@/lib/settings'
-import { getAppUrl } from '@/lib/app-url'
 import { AdminThemeProvider } from '@/components/admin/AdminThemeProvider'
 import { AdminTopBar } from '@/components/admin/AdminTopBar'
 
@@ -159,7 +158,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </div>
             <form action={async () => {
               'use server'
-              await fetch(`${getAppUrl()}/api/auth/logout`, { method: 'POST' })
+              cookies().set('auth_token', '', { maxAge: 0, path: '/' })
               redirect('/admin/login')
             }}>
               <button

@@ -2,23 +2,15 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { PostGrid } from '@/components/blog/PostGrid'
 import { SearchBar } from '@/components/blog/SearchBar'
-import { getAppUrl } from '@/lib/app-url'
+import { getPostsPage } from '@/lib/db-queries'
 
 export const metadata: Metadata = { title: 'Busca' }
 
-async function search(q: string) {
-  if (!q.trim()) return { posts: [] }
-  const res = await fetch(
-    `${getAppUrl()}/api/posts?search=${encodeURIComponent(q)}&limit=20`,
-    { cache: 'no-store' }
-  )
-  if (!res.ok) return { posts: [] }
-  return res.json()
-}
-
 export default async function BuscaPage({ searchParams }: { searchParams: { q?: string } }) {
   const q = searchParams.q ?? ''
-  const { posts } = await search(q)
+  const postsData = q.trim()
+    ? await getPostsPage({ search: q, limit: '20' })
+    : { posts: [], total: 0, page: 1, pages: 1 }
 
   return (
     <div>
@@ -31,13 +23,13 @@ export default async function BuscaPage({ searchParams }: { searchParams: { q?: 
 
       {q && (
         <p className="text-gray-500 mb-6">
-          {posts.length > 0
-            ? `${posts.length} resultado(s) para "${q}"`
+          {postsData.posts.length > 0
+            ? `${postsData.posts.length} resultado(s) para "${q}"`
             : `Nenhum resultado para "${q}"`}
         </p>
       )}
 
-      <PostGrid posts={posts} />
+      <PostGrid posts={postsData.posts} />
     </div>
   )
 }
