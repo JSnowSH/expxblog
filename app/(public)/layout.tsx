@@ -4,6 +4,7 @@ import { BusinessHeader } from '@/components/layout/BusinessHeader'
 import { NewsHeader } from '@/components/layout/NewsHeader'
 import { TechHeader } from '@/components/layout/TechHeader'
 import { Footer } from '@/components/layout/Footer'
+import { TechFooter } from '@/components/layout/TechFooter'
 import { NewsletterSection } from '@/components/blog/NewsletterSection'
 import { getSettings } from '@/lib/settings'
 import { getAppUrl } from '@/lib/app-url'
@@ -56,16 +57,28 @@ export default async function PublicLayout({ children }: { children: React.React
           <NewsletterSection title={newsletter.title} subtitle={newsletter.subtitle} />
         </div>
       )}
-      <Footer
-        blogName={blogName}
-        companyName={company.company_name}
-        companyEmail={company.company_email}
-        companyPhone={company.company_phone}
-        socialFacebook={company.social_facebook}
-        socialInstagram={company.social_instagram}
-        socialTwitter={company.social_twitter}
-        socialYoutube={company.social_youtube}
-      />
+      {template === 'tech' ? (
+        <TechFooter
+          blogName={blogName}
+          companyName={company.company_name}
+          companyEmail={company.company_email}
+          socialFacebook={company.social_facebook}
+          socialInstagram={company.social_instagram}
+          socialTwitter={company.social_twitter}
+          socialYoutube={company.social_youtube}
+        />
+      ) : (
+        <Footer
+          blogName={blogName}
+          companyName={company.company_name}
+          companyEmail={company.company_email}
+          companyPhone={company.company_phone}
+          socialFacebook={company.social_facebook}
+          socialInstagram={company.social_instagram}
+          socialTwitter={company.social_twitter}
+          socialYoutube={company.social_youtube}
+        />
+      )}
     </div>
   )
 }

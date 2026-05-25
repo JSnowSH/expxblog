@@ -170,37 +170,43 @@ export default async function HomePage({
         {sections.length === 0 && (
           <p className="text-gray-500">Nenhum post publicado ainda.</p>
         )}
-        {sections.map(({ category, posts: sectionPosts }) => {
-          const filtered = sectionPosts.filter((p) => !heroIds.has(p.id))
-          if (filtered.length === 0) return null
-          return (
-            <section key={category.id} className="mb-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-1 h-5 rounded-full"
-                    style={{ backgroundColor: 'var(--color-secondary)' }}
-                  />
-                  <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-widest">
-                    {category.name}
-                  </h2>
+        <div className="divide-y divide-gray-100">
+          {sections.map(({ category, posts: sectionPosts }) => {
+            const filtered = sectionPosts.filter((p) => !heroIds.has(p.id))
+            if (filtered.length === 0) return null
+            return (
+              <section key={category.id} className="py-10 first:pt-0">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-1 h-6 rounded-full"
+                      style={{ backgroundColor: 'var(--color-secondary)' }}
+                    />
+                    <h2 className="text-base font-bold text-neutral-900 uppercase tracking-widest">
+                      {category.name}
+                    </h2>
+                  </div>
+                  <a
+                    href={`/categoria/${category.slug}`}
+                    className="text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-60"
+                    style={{ color: 'var(--color-secondary)' }}
+                  >
+                    Ver mais →
+                  </a>
                 </div>
-                <a
-                  href={`/categoria/${category.slug}`}
-                  className="text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-60"
-                  style={{ color: 'var(--color-secondary)' }}
-                >
-                  Ver mais →
-                </a>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filtered.map((post) => (
-                  <PostCardTech key={post.id} post={post} variant="card" />
-                ))}
-              </div>
-            </section>
-          )
-        })}
+                {filtered.length === 1 ? (
+                  <PostCardTech post={filtered[0]} variant="highlight" />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filtered.map((post) => (
+                      <PostCardTech key={post.id} post={post} variant="card" />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )
+          })}
+        </div>
       </div>
     )
   }

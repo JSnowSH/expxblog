@@ -23,14 +23,16 @@ export function TechHero({ posts }: Props) {
 
   return (
     <section className="mb-10">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:h-[420px]">
+        <div className="lg:col-span-2 h-full">
           <PostCardTech post={featured} variant="featured" />
         </div>
         {secondaries.length > 0 && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 h-full">
             {secondaries.map((post) => (
-              <PostCardTech key={post.id} post={post} variant="secondary" />
+              <div key={post.id} className="flex-1 min-h-0">
+                <PostCardTech post={post} variant="secondary" />
+              </div>
             ))}
           </div>
         )}
