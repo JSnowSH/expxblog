@@ -8,11 +8,11 @@ interface Post {
   content: string
   excerpt: string
   cover_image: string | null
-  published_at: string | null
+  published_at: Date | null
   categories: { id: number; name: string; slug: string }[]
 }
 
-function formatDate(d: string | null) {
+function formatDate(d: Date | null) {
   if (!d) return ''
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 }

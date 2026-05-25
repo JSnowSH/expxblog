@@ -147,7 +147,7 @@ export default async function HomePage({
               <div className="flex-1 h-px bg-gray-200" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rest.map((post: { id: number; title: string; slug: string; content: string; excerpt: string; cover_image: string | null; published_at: string | null; categories: { id: number; name: string; slug: string }[] }) => (
+              {rest.map((post: { id: number; title: string; slug: string; content: string; excerpt: string; cover_image: string | null; published_at: Date | null; categories: { id: number; name: string; slug: string }[] }) => (
                 <PostCardBusiness key={post.id} post={post} variant="grid" />
               ))}
             </div>

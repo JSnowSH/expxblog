@@ -7,7 +7,7 @@ interface Post {
   content: string
   excerpt: string
   cover_image: string | null
-  published_at: string | null
+  published_at: Date | null
   categories: { id: number; name: string; slug: string }[]
 }
 
