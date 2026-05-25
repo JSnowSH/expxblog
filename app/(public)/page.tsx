@@ -212,9 +212,9 @@ export default async function HomePage({
                 Últimos artigos
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-4">
               {listPosts.map((post) => (
-                <PostCardTech key={post.id} post={post} variant="card" />
+                <PostCardTech key={post.id} post={post} variant="highlight" />
               ))}
             </div>
             <Suspense>
