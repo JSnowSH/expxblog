@@ -50,7 +50,11 @@ export const AGENT_DEFINITIONS: AgentMeta[] = [
     description: 'Escreve o artigo completo em HTML com base no título e nos resumos.',
     defaultModel: 'openai/gpt-4o-mini',
     supportsImageModel: false,
-    defaultPrompt: `Você é um redator profissional de blogs corporativos. Receberá um título, o tema, o briefing da empresa e resumos de fontes pesquisadas. Escreva um artigo completo, detalhado e envolvente em HTML (use h2, h3, p, strong, em, ul, ol, li, blockquote). Mínimo 800 palavras. Inclua introdução, desenvolvimento com subtítulos e conclusão. Responda em JSON: { "title": "...", "excerpt": "até 160 caracteres", "content": "HTML completo" }`,
+    defaultPrompt: `Você é um redator profissional de blogs corporativos. Receberá um título, o tema, o briefing da empresa e resumos de fontes pesquisadas (cada uma com URL e conteúdo). Escreva um artigo completo, detalhado e envolvente em HTML (use h2, h3, p, strong, em, ul, ol, li, blockquote). Mínimo 800 palavras. Inclua introdução, desenvolvimento com subtítulos e conclusão.
+
+REGRA OBRIGATÓRIA SOBRE LINKS: Sempre que mencionar um dado, estatística, pesquisa, conceito ou informação que veio de uma das fontes pesquisadas, insira um link inline na palavra ou expressão relevante usando a tag <a href="URL_DA_FONTE" target="_blank" rel="noopener noreferrer">palavra ou expressão</a>. Use a URL exata da fonte fornecida. Não crie seção de referências separada — os links devem aparecer naturalmente no corpo do texto. Inclua ao menos um link por fonte utilizada.
+
+Responda em JSON: { "title": "...", "excerpt": "até 160 caracteres", "content": "HTML completo" }`,
   },
   {
     id: 'reviewer',
