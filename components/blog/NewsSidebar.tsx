@@ -48,16 +48,16 @@ export async function NewsSidebar() {
     <aside className="space-y-8">
       {recentPosts.length > 0 && (
         <div>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b-2" style={{ borderColor: 'var(--color-secondary)' }}>
             <div
-              className="w-1 h-5 rounded-full"
+              className="h-4 w-[3px] rounded-sm"
               style={{ backgroundColor: 'var(--color-secondary)' }}
             />
-            <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-widest">
+            <h2 className="text-xs font-bold text-neutral-900 uppercase tracking-widest">
               Destaques
             </h2>
           </div>
-          <div className="bg-white rounded-lg border border-gray-100 px-3 py-1">
+          <div className="space-y-1">
             {recentPosts.map((post, i) => (
               <PostCardNews key={post.id} post={post} variant="mini" rank={i + 1} />
             ))}
@@ -67,12 +67,12 @@ export async function NewsSidebar() {
 
       {allTags.length > 0 && (
         <div>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 mb-4 pb-3 border-b-2" style={{ borderColor: 'var(--color-secondary)' }}>
             <div
-              className="w-1 h-5 rounded-full"
+              className="h-4 w-[3px] rounded-sm"
               style={{ backgroundColor: 'var(--color-secondary)' }}
             />
-            <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-widest">Tags</h2>
+            <h2 className="text-xs font-bold text-neutral-900 uppercase tracking-widest">Tags</h2>
           </div>
           <div className="flex flex-wrap gap-2">
             {allTags.map((tag) => (

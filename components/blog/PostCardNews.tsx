@@ -19,7 +19,7 @@ function formatDate(d: string | null) {
 
 interface Props {
   post: Post
-  variant?: 'card' | 'mini'
+  variant?: 'horizontal' | 'lead' | 'card' | 'mini'
   rank?: number
 }
 
@@ -31,11 +31,11 @@ export function PostCardNews({ post, variant = 'card', rank }: Props) {
     return (
       <Link
         href={`/${post.slug}`}
-        className="group flex items-start gap-3 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors px-1 rounded"
+        className="group flex items-start gap-3 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 transition-colors px-1 rounded"
       >
         {rank !== undefined && (
           <span
-            className="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5"
+            className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-xs font-bold text-white mt-0.5"
             style={{ backgroundColor: 'var(--color-primary)' }}
           >
             {rank}
@@ -54,38 +54,102 @@ export function PostCardNews({ post, variant = 'card', rank }: Props) {
     )
   }
 
+  if (variant === 'horizontal') {
+    return (
+      <article className="group">
+        <Link href={`/${post.slug}`} className="flex gap-5 items-start">
+          {post.cover_image && (
+            <div className="w-2/5 shrink-0 overflow-hidden rounded-lg aspect-[16/9]">
+              <img
+                src={post.cover_image}
+                alt={post.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+          )}
+          <div className="flex-1 py-1">
+            {firstCategory && (
+              <span
+                className="text-xs font-bold uppercase tracking-wider mb-1.5 block"
+                style={{ color: 'var(--color-secondary)' }}
+              >
+                {firstCategory.name}
+              </span>
+            )}
+            <h3 className="text-base font-bold text-neutral-900 leading-snug line-clamp-3 group-hover:opacity-75 mb-2">
+              {post.title}
+            </h3>
+            {post.excerpt && (
+              <p className="text-sm text-gray-500 line-clamp-2 mb-2">{post.excerpt}</p>
+            )}
+            <p className="text-xs text-gray-400">
+              {formatDate(post.published_at)}{readTime ? ` · ${readTime} min de leitura` : ''}
+            </p>
+          </div>
+        </Link>
+      </article>
+    )
+  }
+
+  if (variant === 'lead') {
+    return (
+      <article className="group">
+        <Link href={`/${post.slug}`} className="block">
+          <div className="overflow-hidden rounded-lg mb-3 aspect-[16/9]">
+            {post.cover_image ? (
+              <img
+                src={post.cover_image}
+                alt={post.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-100" />
+            )}
+          </div>
+          {firstCategory && (
+            <span
+              className="text-xs font-bold uppercase tracking-wider mb-1.5 block"
+              style={{ color: 'var(--color-secondary)' }}
+            >
+              {firstCategory.name}
+            </span>
+          )}
+          <h3 className="text-base font-bold text-neutral-900 leading-snug line-clamp-3 group-hover:opacity-75 mb-2">
+            {post.title}
+          </h3>
+          {post.excerpt && (
+            <p className="text-sm text-gray-500 line-clamp-2 mb-2">{post.excerpt}</p>
+          )}
+          <p className="text-xs text-gray-400">
+            {formatDate(post.published_at)}{readTime ? ` · ${readTime} min de leitura` : ''}
+          </p>
+        </Link>
+      </article>
+    )
+  }
+
+  // 'card' variant — compact horizontal thumbnail, for secondary slots
   return (
-    <Link
-      href={`/${post.slug}`}
-      className="group bg-white rounded-lg overflow-hidden hover:shadow-md transition-shadow block border border-gray-100"
-    >
-      <div className="aspect-[16/9] overflow-hidden">
-        {post.cover_image ? (
-          <img
-            src={post.cover_image}
-            alt={post.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200" />
+    <article className="group">
+      <Link href={`/${post.slug}`} className="flex gap-3 items-start">
+        {post.cover_image && (
+          <div className="w-20 h-14 shrink-0 overflow-hidden rounded">
+            <img
+              src={post.cover_image}
+              alt={post.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          </div>
         )}
-      </div>
-      <div className="p-3">
-        {firstCategory && (
-          <span
-            className="text-xs font-bold uppercase tracking-wider mb-1.5 block"
-            style={{ color: 'var(--color-secondary)' }}
-          >
-            {firstCategory.name}
-          </span>
-        )}
-        <h3 className="text-sm font-bold text-neutral-900 leading-snug line-clamp-2 group-hover:opacity-70">
-          {post.title}
-        </h3>
-        <p className="text-xs text-gray-400 mt-2">
-          {formatDate(post.published_at)} · {readTime} min de leitura
-        </p>
-      </div>
-    </Link>
+        <div className="flex-1 min-w-0">
+          <h4 className="text-sm font-bold text-neutral-900 leading-snug line-clamp-3 group-hover:opacity-75">
+            {post.title}
+          </h4>
+          <p className="text-xs text-gray-400 mt-1">
+            {formatDate(post.published_at)}{readTime ? ` · ${readTime} min` : ''}
+          </p>
+        </div>
+      </Link>
+    </article>
   )
 }

@@ -26,15 +26,17 @@ interface Props {
 export function CategorySection({ category, posts }: Props) {
   if (posts.length === 0) return null
 
+  const [lead, ...rest] = posts
+
   return (
-    <section className="mb-8">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+    <section className="mb-10 pb-10 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
           <div
-            className="w-1 h-5 rounded-full"
+            className="h-5 w-[3px] rounded-sm"
             style={{ backgroundColor: 'var(--color-primary)' }}
           />
-          <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-neutral-900 uppercase tracking-widest">
             {category.name}
           </h2>
         </div>
@@ -46,11 +48,31 @@ export function CategorySection({ category, posts }: Props) {
           Ver mais →
         </Link>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {posts.map((post) => (
-          <PostCardNews key={post.id} post={post} variant="card" />
-        ))}
-      </div>
+
+      {posts.length === 1 && (
+        <PostCardNews post={lead} variant="horizontal" />
+      )}
+
+      {posts.length === 2 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {posts.map((post) => (
+            <PostCardNews key={post.id} post={post} variant="lead" />
+          ))}
+        </div>
+      )}
+
+      {posts.length >= 3 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="md:col-span-2">
+            <PostCardNews post={lead} variant="lead" />
+          </div>
+          <div className="flex flex-col gap-5">
+            {rest.map((post) => (
+              <PostCardNews key={post.id} post={post} variant="card" />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
