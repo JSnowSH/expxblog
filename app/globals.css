@@ -247,6 +247,29 @@ body {
   flex-shrink: 0;
 }
 
+/* ── View blog button ────────────────────────────────────── */
+.admin-view-blog-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--at-toggle-text);
+  text-decoration: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--at-topbar-border);
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+.admin-view-blog-btn:hover {
+  background: var(--at-toggle-bg);
+  color: var(--at-toggle-text);
+  border-color: var(--at-toggle-bg);
+}
+
 /* ── Theme toggle button ─────────────────────────────────── */
 .admin-theme-toggle {
   display: inline-flex;
