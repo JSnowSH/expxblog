@@ -13,6 +13,7 @@ export async function getFirecrawlApiKey(): Promise<string | null> {
 export interface AgentExtra {
   use_firecrawl?: boolean
   image_source?: 'ai' | 'pexels'
+  reviewer_enabled?: boolean
 }
 
 export async function getAgentsExtra(): Promise<Record<string, AgentExtra>> {

@@ -9,6 +9,7 @@ import { runCtaAgent } from '@/lib/agents/cta'
 import { runDesignerAgent } from '@/lib/agents/designer'
 import { runPublisherAgent } from '@/lib/agents/publisher'
 import { getAgentConfig, upsertAgentConfig } from '@/lib/agent-configs'
+import { getAgentsExtra } from '@/lib/firecrawl'
 import { AgentContext, AgentId, PipelineEvent, PublisherTriggers } from '@/lib/agents/types'
 
 const LEARNING_MARKER = '\n\n--- ERROS RECORRENTES (aprender a evitar) ---'
@@ -184,12 +185,17 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         Object.assign(ctx, copyResult.data)
         send(makeEvent('agent_done', copyResult.message, 'copywriter'))
 
-        // 5. Reviewer loop
+        // 5. Reviewer loop (skipped if reviewer is disabled in agents_extra)
+        const agentsExtra = await getAgentsExtra()
+        const reviewerEnabled = agentsExtra['reviewer']?.reviewer_enabled ?? true
         ctx.reviewCycles = 0
         let reviewCycles = 0
         const persistentIssues: string[] = []
         let lastIssues: string[] = []
-        while (reviewCycles < MAX_REVIEW_CYCLES) {
+        if (!reviewerEnabled) {
+          send(makeEvent('agent_done', 'Revisor desabilitado, pulando revisão', 'reviewer'))
+        }
+        while (reviewerEnabled && reviewCycles < MAX_REVIEW_CYCLES) {
           if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
           const cycle = reviewCycles + 1
           send(makeEvent('agent_start', `Revisando artigo (ciclo ${cycle})...`, 'reviewer'))

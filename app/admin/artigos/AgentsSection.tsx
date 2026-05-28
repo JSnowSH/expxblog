@@ -157,6 +157,24 @@ export default function AgentsSection() {
     }
   }
 
+  async function toggleReviewer(enabled: boolean) {
+    const updated = { ...agentsExtra, reviewer: { ...(agentsExtra['reviewer'] ?? {}), reviewer_enabled: enabled } }
+    setAgentsExtra(updated)
+    setSavingExtra('reviewer')
+    try {
+      await fetch('/api/admin/agents/extra', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents_extra: updated }),
+      })
+      setToast({ type: 'success', msg: `Revisor ${enabled ? 'ativado' : 'desativado'}` })
+    } catch {
+      setToast({ type: 'error', msg: 'Erro ao salvar' })
+    } finally {
+      setSavingExtra(null)
+    }
+  }
+
   async function setImageSource(source: 'ai' | 'pexels') {
     const updated = { ...agentsExtra, designer: { ...(agentsExtra['designer'] ?? {}), image_source: source } }
     setAgentsExtra(updated)
@@ -464,6 +482,34 @@ export default function AgentsSection() {
                         <span
                           className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
                             agentsExtra[cfg.id]?.use_firecrawl ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Reviewer enabled toggle — reviewer only */}
+                  {cfg.id === 'reviewer' && (
+                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div>
+                        <p className="text-xs font-medium text-blue-900">
+                          Habilitar Revisor
+                        </p>
+                        <p className="text-xs text-blue-700 mt-0.5">
+                          Quando desativado, o artigo vai direto do copywriter para o CTA sem revisão
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={savingExtra === 'reviewer'}
+                        onClick={() => toggleReviewer(!(agentsExtra['reviewer']?.reviewer_enabled ?? true))}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+                          (agentsExtra['reviewer']?.reviewer_enabled ?? true) ? 'bg-brand-primary' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                            (agentsExtra['reviewer']?.reviewer_enabled ?? true) ? 'translate-x-5' : 'translate-x-0'
                           }`}
                         />
                       </button>
