@@ -22,6 +22,45 @@ export async function runAnalystAgent(
   apiKey: string,
   onProgress?: (msg: string) => void
 ): Promise<AgentResult> {
+  // Texto colado pelo usuário — usa diretamente como fonte, sem buscar URLs
+  if (ctx.pastedText) {
+    onProgress?.('Resumindo texto colado...')
+    const config = await getAgentConfig('analyst')
+    try {
+      const resp = await callOpenRouter(
+        {
+          model: config.model,
+          messages: [
+            { role: 'system', content: config.prompt },
+            {
+              role: 'user',
+              content: `Título do artigo: ${ctx.headline ?? ''}\n\nURL: texto-colado\n\nConteúdo:\n${ctx.pastedText.slice(0, 6000)}`,
+            },
+          ],
+          temperature: 0.4,
+          max_tokens: 600,
+        },
+        apiKey
+      )
+      const summary = resp.choices[0]?.message?.content?.trim() ?? ''
+      return {
+        success: true,
+        message: '1 fonte analisada (texto colado)',
+        data: {
+          sourceSummaries: summary.length > 50
+            ? [{ url: 'texto-colado', summary }]
+            : [],
+        },
+      }
+    } catch {
+      return {
+        success: true,
+        message: 'Falha ao resumir texto colado, continuando sem resumos',
+        data: { sourceSummaries: [] },
+      }
+    }
+  }
+
   if (!ctx.researchLinks || ctx.researchLinks.length === 0) {
     return {
       success: true,
