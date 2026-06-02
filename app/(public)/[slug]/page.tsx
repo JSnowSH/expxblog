@@ -64,7 +64,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
   if (!post) notFound()
 
   return (
-    <article className="max-w-3xl mx-auto">
+    <article className="w-full">
       <Link href="/" className="text-brand-primary text-sm hover:underline mb-6 inline-block">
         ← Voltar ao Blog
       </Link>
