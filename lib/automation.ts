@@ -39,11 +39,6 @@ export async function runAutomationCycle(
 
   const startedAt = Date.now()
 
-  const [logRow] = await db
-    .insert(automationLogs)
-    .values({ triggered_by: triggeredBy, status: 'running', started_at: new Date(startedAt) })
-    .returning()
-
   let themeIds: number[] = []
   try {
     themeIds = JSON.parse(config.theme_ids)
@@ -80,66 +75,55 @@ export async function runAutomationCycle(
 
     if (!lastEvent) {
       const message = 'Pipeline não retornou resultado'
-      await finalizeLog(logRow.id, { status: 'error', message, error: message, durationMs })
+      await writeLog({ triggeredBy, status: 'error', message, error: message, durationMs })
+      await updateNextRun(config.id, config.interval_hours)
       return { success: false, message }
     }
 
     if (lastEvent.type === 'pipeline_done') {
       const postId = lastEvent.data?.post_id as number | undefined
-      await finalizeLog(logRow.id, { status: 'success', message: lastEvent.message, postId, durationMs })
-      return {
-        success: true,
-        message: lastEvent.message,
-        post_id: postId,
-      }
+      await writeLog({ triggeredBy, status: 'success', message: lastEvent.message, postId, durationMs })
+      await updateNextRun(config.id, config.interval_hours)
+      return { success: true, message: lastEvent.message, post_id: postId }
     }
 
-    await finalizeLog(logRow.id, { status: 'error', message: lastEvent.message, error: lastEvent.message, durationMs })
+    await writeLog({ triggeredBy, status: 'error', message: lastEvent.message, error: lastEvent.message, durationMs })
+    await updateNextRun(config.id, config.interval_hours)
     return { success: false, message: lastEvent.message }
   } catch (err) {
     const durationMs = Date.now() - startedAt
     const errorMsg = err instanceof Error ? err.message : String(err)
-    await finalizeLog(logRow.id, { status: 'error', message: 'Erro inesperado na automação', error: errorMsg, durationMs })
+    await writeLog({ triggeredBy, status: 'error', message: 'Erro inesperado na automação', error: errorMsg, durationMs })
+    await updateNextRun(config.id, config.interval_hours)
     throw err
   }
 }
 
 async function writeLog(params: {
   triggeredBy: 'schedule' | 'manual'
-  status: 'skipped' | 'error'
+  status: 'skipped' | 'success' | 'error'
   message: string
   durationMs: number
+  postId?: number
+  error?: string
 }) {
-  const now = new Date()
+  const startedAt = new Date(Date.now() - params.durationMs)
+  const finishedAt = new Date()
   await db.insert(automationLogs).values({
     triggered_by: params.triggeredBy,
     status: params.status,
     message: params.message,
+    post_id: params.postId ?? null,
+    error: params.error ?? null,
     duration_ms: params.durationMs,
-    started_at: now,
-    finished_at: now,
+    started_at: startedAt,
+    finished_at: finishedAt,
   })
 }
 
-async function finalizeLog(
-  id: number,
-  params: {
-    status: 'success' | 'error'
-    message: string
-    postId?: number
-    error?: string
-    durationMs: number
-  }
-) {
-  await db
-    .update(automationLogs)
-    .set({
-      status: params.status,
-      message: params.message,
-      post_id: params.postId ?? null,
-      error: params.error ?? null,
-      duration_ms: params.durationMs,
-      finished_at: new Date(),
-    })
-    .where(eq(automationLogs.id, id))
+async function updateNextRun(configId: number, intervalHours: number) {
+  await db.update(automationConfig).set({
+    last_run_at: new Date(),
+    next_run_at: new Date(Date.now() + intervalHours * 60 * 60 * 1000),
+  }).where(eq(automationConfig.id, configId))
 }

@@ -38,10 +38,8 @@ export async function PUT(request: NextRequest) {
     const now = new Date()
     const hours = Math.max(5 / 60, Math.min(168, Number(interval_hours) || 24))
 
-    // Recalculate next_run_at based on current time when enabling
-    const nextRun = enabled
-      ? new Date(now.getTime() + hours * 60 * 60 * 1000)
-      : config.next_run_at
+    // Reset to now only on false→true transition so the cron fires soon; preserve schedule on true→true
+    const nextRun = enabled && !config.enabled ? now : config.next_run_at
 
     await db.update(automationConfig).set({
       enabled: Boolean(enabled),
