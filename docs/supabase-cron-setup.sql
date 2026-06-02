@@ -56,6 +56,26 @@ select cron.schedule(
   $$
 );
 
+-- ─── 4. Cron: source crawlers a cada 15 minutos ──────────────────────────────
+-- O endpoint verifica internamente quais crawlers estão com next_run_at vencido.
+-- Rodar a cada 15 minutos garante granularidade adequada.
+
+select cron.schedule(
+  'source-crawlers-check-every-15min',
+  '*/15 * * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'app_url') || '/api/cron/source-crawlers',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 600000
+  ) as request_id;
+  $$
+);
+
 -- ─── Verificar jobs agendados ─────────────────────────────────────────────────
 
 select jobid, jobname, schedule, command, active
@@ -66,3 +86,4 @@ order by jobid;
 
 -- select cron.unschedule('rss-check-every-30min');
 -- select cron.unschedule('automation-check-every-15min');
+-- select cron.unschedule('source-crawlers-check-every-15min');
