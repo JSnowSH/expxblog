@@ -6,7 +6,9 @@ import { runSingleCrawler } from '@/lib/source-crawlers/runner'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const id = parseInt(params.id, 10)
-  const body = await request.json() as Partial<{
+  const raw = await request.json() as Record<string, unknown>
+
+  const allowed: Partial<{
     name: string
     type: string
     url: string
@@ -14,10 +16,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     interval_hours: number
     enabled: boolean
     publish_status: string
-  }>
+  }> = {}
+
+  if (typeof raw.name === 'string') allowed.name = raw.name.trim()
+  if (typeof raw.type === 'string') allowed.type = raw.type
+  if (typeof raw.url === 'string') allowed.url = raw.url.trim()
+  if (typeof raw.prompt === 'string') allowed.prompt = raw.prompt
+  if (typeof raw.interval_hours === 'number') allowed.interval_hours = raw.interval_hours
+  if (typeof raw.enabled === 'boolean') allowed.enabled = raw.enabled
+  if (typeof raw.publish_status === 'string') allowed.publish_status = raw.publish_status
 
   const [updated] = await db.update(sourceCrawlers)
-    .set({ ...body, updated_at: new Date() })
+    .set({ ...allowed, updated_at: new Date() })
     .where(eq(sourceCrawlers.id, id))
     .returning()
 

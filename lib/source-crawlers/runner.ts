@@ -36,7 +36,7 @@ async function consumeStream(stream: ReadableStream): Promise<PipelineEvent | nu
   const reader = stream.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  let lastEvent: PipelineEvent | null = null
+  let terminalEvent: PipelineEvent | null = null
 
   while (true) {
     const { done, value } = await reader.read()
@@ -47,10 +47,15 @@ async function consumeStream(stream: ReadableStream): Promise<PipelineEvent | nu
     for (const part of parts) {
       const line = part.replace(/^data: /, '').trim()
       if (!line) continue
-      try { lastEvent = JSON.parse(line) as PipelineEvent } catch {}
+      try {
+        const event = JSON.parse(line) as PipelineEvent
+        if (event.type === 'pipeline_done' || event.type === 'pipeline_error') {
+          terminalEvent = event
+        }
+      } catch {}
     }
   }
-  return lastEvent
+  return terminalEvent
 }
 
 export async function runDueCrawlers(): Promise<CrawlerRunResult[]> {
@@ -85,7 +90,8 @@ export async function runDueCrawlers(): Promise<CrawlerRunResult[]> {
       })
 
       const lastEvent = await consumeStream(stream)
-      const postId = lastEvent?.data?.post_id as number | undefined
+      const rawPostId = lastEvent?.data?.post_id
+      const postId = typeof rawPostId === 'number' ? rawPostId : undefined
       const success = lastEvent?.type === 'pipeline_done'
 
       await db.insert(sourceCrawlerItems).values({
@@ -129,40 +135,53 @@ export async function runSingleCrawler(crawlerId: number): Promise<CrawlerRunRes
   const now = new Date()
   const alreadyProcessedKeys = await getAlreadyProcessedKeys(crawler.id)
 
-  const handlerResult = await runHandler(crawler.type, {
-    url: crawler.url,
-    prompt: crawler.prompt,
-    alreadyProcessedKeys,
-  })
+  try {
+    const handlerResult = await runHandler(crawler.type, {
+      url: crawler.url,
+      prompt: crawler.prompt,
+      alreadyProcessedKeys,
+    })
 
-  const { chosen } = handlerResult
+    const { chosen } = handlerResult
 
-  const stream = createPipelineStream({
-    themeIds: [],
-    triggers: { publishStatus: crawler.publish_status as 'draft' | 'published' },
-    initialContext: { pastedText: chosen.content },
-  })
+    const stream = createPipelineStream({
+      themeIds: [],
+      triggers: { publishStatus: crawler.publish_status as 'draft' | 'published' },
+      initialContext: { pastedText: chosen.content },
+    })
 
-  const lastEvent = await consumeStream(stream)
-  const postId = lastEvent?.data?.post_id as number | undefined
-  const success = lastEvent?.type === 'pipeline_done'
+    const lastEvent = await consumeStream(stream)
+    const rawPostId = lastEvent?.data?.post_id
+    const postId = typeof rawPostId === 'number' ? rawPostId : undefined
+    const success = lastEvent?.type === 'pipeline_done'
 
-  await db.insert(sourceCrawlerItems).values({
-    crawler_id: crawler.id,
-    item_key: chosen.key,
-    item_title: chosen.title,
-    post_id: postId ?? null,
-    status: success ? 'done' : 'error',
-    error: success ? null : (lastEvent?.message ?? 'Pipeline falhou'),
-  }).onConflictDoNothing()
+    await db.insert(sourceCrawlerItems).values({
+      crawler_id: crawler.id,
+      item_key: chosen.key,
+      item_title: chosen.title,
+      post_id: postId ?? null,
+      status: success ? 'done' : 'error',
+      error: success ? null : (lastEvent?.message ?? 'Pipeline falhou'),
+    }).onConflictDoNothing()
 
-  const nextRun = new Date(now.getTime() + crawler.interval_hours * 60 * 60 * 1000)
-  await db.update(sourceCrawlers).set({
-    last_run_at: now,
-    next_run_at: nextRun,
-    last_error: success ? null : (lastEvent?.message ?? 'Pipeline falhou'),
-    updated_at: now,
-  }).where(eq(sourceCrawlers.id, crawler.id))
+    const nextRun = new Date(now.getTime() + crawler.interval_hours * 60 * 60 * 1000)
+    await db.update(sourceCrawlers).set({
+      last_run_at: now,
+      next_run_at: nextRun,
+      last_error: success ? null : (lastEvent?.message ?? 'Pipeline falhou'),
+      updated_at: now,
+    }).where(eq(sourceCrawlers.id, crawler.id))
 
-  return { crawlerId: crawler.id, crawlerName: crawler.name, success, postId, itemKey: chosen.key }
+    return { crawlerId: crawler.id, crawlerName: crawler.name, success, postId, itemKey: chosen.key }
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err)
+    const nextRun = new Date(now.getTime() + crawler.interval_hours * 60 * 60 * 1000)
+    await db.update(sourceCrawlers).set({
+      last_run_at: now,
+      next_run_at: nextRun,
+      last_error: error,
+      updated_at: now,
+    }).where(eq(sourceCrawlers.id, crawler.id))
+    return { crawlerId: crawler.id, crawlerName: crawler.name, success: false, error }
+  }
 }
