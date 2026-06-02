@@ -1,89 +1,88 @@
-# CLAUDE.md
+# AGENTS.md — ExpxBlog
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Instruções por submódulo para agentes de IA (OpenCode, Codex, etc.).
+Complementam os system prompts dos agents — não repetem o que está em CLAUDE.md.
 
-## Deployment
+---
 
-**Never deploy directly to Vercel.** Always commit and push to GitHub — Vercel picks up the changes automatically via its GitHub integration.
+## Regras Globais (qualquer módulo)
 
-```bash
-git add <files>
-git commit -m "message"
-git push origin master
-```
+### Segurança inviolável
+- Nunca leia chave de IA de `process.env` — use `getAIApiKey()` de `lib/ai.ts`
+- Nunca logue `JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` ou tokens JWT em console ou resposta HTTP
+- HTML de usuário ou de IA **sempre** passa por `sanitize-html` antes de persistir no banco
+- Nunca execute `vercel deploy` — deploy é exclusivamente via `git push origin master`
+- Nunca adicione a chave `"crons"` ao `vercel.json` — crons usam pg_cron + pg_net no Supabase
 
-## Commands
+### Convenções universais
+- Erros de API retornam `{ error: string }` — nunca `{ message }` nem outro shape
+- Imports usam alias `@/` — nunca caminhos relativos com `../../`
+- Status de post: apenas `"draft"` ou `"published"` — nenhuma outra string
+- Pool DB: `max: 5`, `prepare: false` — imutável sem justificativa explícita
+- Nunca use `as any` para suprimir erro TypeScript — corrija o tipo
 
-```bash
-# Development
-npm run dev          # Start Next.js dev server on http://localhost:3000
+---
 
-# Build & lint
-npm run build        # Production build
-npm run lint         # ESLint
+## `app/(public)/` — Public Frontend
 
-# Database
-npm run db:generate  # Generate Drizzle migrations from schema changes
-npm run db:migrate   # Apply pending migrations to the database
-npm run db:studio    # Open Drizzle Studio (visual DB browser)
-npm run db:seed      # Seed initial data (admin user, sample categories/tags/post)
-```
+- Server Components com queries Drizzle diretas — **sem** `fetch('/api/')`
+- Nunca adicione `'use client'` em `page.tsx` — extraia interatividade para `components/blog/`
+- Sempre filtre `status = 'published'` — nunca exponha rascunhos ao público
+- `generateMetadata()` obrigatório em páginas de post, categoria e tag
+- Corpo do artigo: `dangerouslySetInnerHTML` (HTML já sanitizado do banco), classes `prose prose-lg font-serif`
+- Pageview: fire-and-forget — nunca bloqueie a renderização aguardando o registro
+- RSS em `/feed.xml`: últimos 20 publicados, `Content-Type: application/rss+xml; charset=utf-8`
 
-No test suite is configured in this project.
+---
 
-## Architecture
+## `app/admin/` — Admin UI
 
-**Stack**: Next.js 14 App Router · TypeScript · Tailwind CSS · Drizzle ORM · PostgreSQL (Supabase)
+- `page.tsx`: Server Component puro — sem `async/await`, sem Drizzle, sem `'use client'`, apenas renderiza `<XyzClient />`
+- `*Client.tsx`: começa com `'use client'`, contém toda lógica, estado e fetch
+- Data access: sempre `fetch('/api/admin/...')` — **nunca Drizzle direto em admin pages**
+- Feedback ao usuário: toast `{ type: 'success'|'error', msg: string }` desaparecendo em 3s — proibido `alert()`
+- Toda nova seção precisa de entrada no array `navItems` em `app/admin/layout.tsx`
+- Editor de rich text: somente `components/blog/TiptapEditor.tsx` — output é HTML, não Markdown
 
-### Route Groups
+---
 
-- `app/(public)/` — Public blog (home, post by slug, category/tag filters, search). Uses server components with direct DB queries via Drizzle.
-- `app/admin/` — Protected admin dashboard (post/category/tag CRUD, rich text editor). All pages are client components communicating with `/api/admin/*`.
-- `app/api/` — REST API. Public routes under `/api/posts`, `/api/categories`, `/api/tags`. Admin routes under `/api/admin/*` (protected by middleware).
+## `app/api/` — API Builder
 
-### Authentication
+- `/api/admin/*`: protegido pelo `middleware.ts` — não adicione guard manual
+- `/api/v1/*`: `validateApiToken()` de `lib/api-auth.ts`
+- `/api/cron/*`: Bearer `SUPABASE_SERVICE_ROLE_KEY`, método `POST`, `export const maxDuration = 800`
+- Rotas públicas (`/api/posts`, `/api/categories`, `/api/tags`): sempre `WHERE status = 'published'`
+- Handlers > ~15 linhas extraem lógica para `lib/`; queries > 3 linhas vão para `lib/db-queries.ts`
+- `POST` que cria recurso → `201`; `DELETE` → `200 { success: true }`; validação → `400 { error }`
 
-JWT stored in an httpOnly cookie (`auth-token`, 24h). `middleware.ts` verifies it on every `/admin` and `/api/admin` request, injects `x-user-id` and `x-user-email` headers, and redirects unauthenticated users to `/admin/login`. Login is rate-limited to 5 attempts per IP per 15 minutes.
+---
 
-### Database
+## `lib/agents/` e `lib/agent-pipeline.ts` — AI Pipeline
 
-Schema lives in `drizzle/schema.ts`. Tables: `users`, `posts`, `categories`, `tags`, `post_categories` (junction), `post_tags` (junction). Connection pool via `drizzle/db.ts` using the `DATABASE_URL` env var (Supabase PostgreSQL).
+- Toda chamada LLM via `aiChat(feature, messages)` de `lib/ai.ts` — **zero imports de provider direto**
+- Ordem do pipeline (imutável): Headline → Researcher → Analyst → Copywriter → Reviewer → CTA → Designer → Publisher
+- Somente o Publisher persiste o post no banco
+- Loop de revisão Copywriter↔Reviewer: máximo **3 ciclos** — após o 3º entrega o melhor rascunho
+- Princípios aprendidos pelo Reviewer: máximo **10**, FIFO, injetados no system prompt do Copywriter
+- SSE: cada evento tem shape `{ stage: string, status: 'running'|'done'|'error', data?: unknown }`
 
-Posts have a `status` enum (`draft` | `published`) and a `published_at` timestamp. Public API only returns published posts.
+---
 
-### Content Pipeline
+## `app/api/cron/` e `lib/automation*` — Cron Automator
 
-Post content is HTML produced by TipTap (rich text editor in `components/blog/TiptapEditor.tsx`). On save, the API sanitizes it with `sanitize-html` before persisting. Slugs are auto-generated from the title via `lib/slug.ts`.
+- Automação executa somente se `automation_config.enabled = true` AND `next_run_at <= now()`
+- Toda execução registra em `automation_logs`: `trigger`, `status`, `duration_ms`, `post_id` ou `error`
+- RSS: deduplicação por GUID (fallback: `link`); itens com mais de 7 dias são ignorados mesmo se novos no sistema
+- Crawlers em `lib/source-crawlers/`: exportam `run()`, invocados **somente** pelo runner — nunca direto de route
+- Firecrawl: verificar `FIRECRAWL_API_KEY` antes de invocar — ausência não é erro bloqueante para o pipeline
 
-### Image Uploads
+---
 
-Local uploads go to `public/uploads/` (excluded from git). Remote images are allowed from `imgur.com`, `cloudinary.com`, `unsplash.com`, and `supabase.co` (configured in `next.config.js`).
+## `drizzle/` e `lib/db-queries.ts` — DB Engineer
 
-### Brand Tokens
-
-Custom Tailwind colors: `brand-primary` `#1A4FA0` (blue), `brand-secondary` `#F58A2D` (orange), `neutral-900` `#1A1A2E`. Fonts: Inter (sans), Source Serif 4 (serif), JetBrains Mono (mono).
-
-### AI / OpenRouter
-
-**ALL AI features MUST use OpenRouter** (`https://openrouter.ai`). No direct OpenAI, Anthropic, or other provider SDKs.
-
-- **Configuration module**: `lib/ai.ts` — exports `callOpenRouter()`, `aiChat()`, `getAIModelFromDB()`, `getAIApiKey()`, `getDefaultModel()`, `getDefaultModels()`, types `AIFeature`, `OpenRouterMessage`, `OpenRouterOptions`, `OpenRouterResponse`.
-- **API key**: Stored in `site_settings` table under key `ai_api_key`. Configured via the admin UI at `/admin/configuracoes` (section "IA (OpenRouter)"). NOT in environment variables.
-- **Per-feature model selection**: Each AI feature (e.g. `content_generation`, `title_suggestion`, `excerpt_generation`, `seo_optimization`) has its own model setting stored in `site_settings` table under key `ai_models` as a JSON map `{ feature: "model_id" }`. The admin UI at `/admin/configuracoes` allows changing the model per feature.
-- **How to add a new AI feature**:
-  1. Add the feature key as a string to `DEFAULT_MODELS` in `lib/ai.ts` with a sensible default model (e.g. `"openai/gpt-4o-mini"`).
-  2. Add a label for the feature in `FEATURE_LABELS` in `app/admin/configuracoes/ConfiguracoesClient.tsx`.
-  3. Use `aiChat(feature, messages, options?)` to call the LLM — it automatically resolves the API key from DB, resolves the model from DB or falls back to the default.
-  4. For lower-level control, use `getAIApiKey()` to get the key, `getAIModelFromDB(feature)` to get the model, and `callOpenRouter({ model, messages }, apiKey)` to make the call.
-  5. Never call any AI provider API directly — always go through `lib/ai.ts`.
-
-## Environment Variables
-
-```
-DATABASE_URL          # Supabase PostgreSQL connection string (pooler port 6543)
-JWT_SECRET            # Min 32 chars, used to sign/verify auth tokens
-NEXT_PUBLIC_APP_URL   # Base URL (e.g. http://localhost:3000)
-NEXT_PUBLIC_BLOG_NAME # Blog display name
-```
-
-Copy `.env.example` to `.env` to get started.
+- Junction tables (`post_categories`, `post_tags`): PK composta — **nunca** adicione `id` serial
+- Toda tabela nova precisa de `id`, `created_at`, `updated_at`
+- `site_settings (key TEXT PK, value TEXT)`: toda configuração global vai aqui — nunca crie tabela de config separada
+- `automation_logs`: append-only — nunca atualize registros já inseridos
+- `ALTER TABLE ... ADD COLUMN NOT NULL` em tabela com dados existentes exige `DEFAULT` ou dois passos
+- Migrations: sempre `npm run db:generate` — nunca edite arquivos de migration manualmente

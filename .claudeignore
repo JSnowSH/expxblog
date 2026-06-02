@@ -33,8 +33,7 @@ secrets/
 *.sqlite3
 
 # Uploads e mídia
-public/uploads/*
-!public/uploads/.gitkeep
+public/uploads/
 
 # Cache e logs
 .cache/
@@ -44,8 +43,9 @@ yarn-debug.log*
 yarn-error.log*
 .npm/
 .eslintcache
+.turbo/
 
-# Drizzle migrations geradas
+# Drizzle migrations geradas (artefatos, não fonte)
 drizzle/migrations/
 
 # Claude Code — configurações locais
