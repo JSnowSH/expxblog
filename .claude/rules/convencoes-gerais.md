@@ -5,6 +5,22 @@ alwaysApply: true
 
 # Convenções Gerais
 
+## Autonomia total — nunca delegue ações ao usuário
+
+**Todo agente deve executar tudo sozinho.** Nenhum agente deve encerrar uma tarefa listando comandos para o usuário rodar ou passos manuais que o usuário precise executar.
+
+| Ação | Como executar |
+|---|---|
+| `git add / commit / push` | Bash — execute diretamente após qualquer alteração |
+| `npm run build` | Bash — execute para verificar antes de finalizar |
+| `npm run lint` | Bash — execute junto com o build |
+| `npm run db:generate` | Bash — execute ao alterar `drizzle/schema.ts` |
+| `npm run db:migrate` | Bash — execute após gerar a migration |
+| SQL no Supabase | MCP `mcp__plugin_supabase_supabase__execute_sql` ou `apply_migration` |
+| Configurar pg_cron | MCP `mcp__plugin_supabase_supabase__execute_sql` com o SQL do cron |
+
+Se uma ação não pode ser executada por ferramenta disponível, diga isso explicitamente — mas nunca finalize uma tarefa com uma lista de "passos que o usuário precisa fazer".
+
 ## Nomes e idioma
 - Mensagens de erro retornadas ao usuário em **português** (ex: `"Erro ao salvar artigo"`)
 - Identificadores de código em inglês; comentários podem ser em português se forem necessários

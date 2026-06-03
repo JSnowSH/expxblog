@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Regra de ouro — nunca peça ao usuário para rodar comandos
+
+**Claude Code NUNCA deve pedir ao usuário que execute comandos manualmente.** Toda ação que pode ser executada por ferramenta deve ser executada por Claude:
+
+- `git add`, `git commit`, `git push` — execute via Bash após qualquer alteração de código
+- `npm run build`, `npm run lint` — execute via Bash para verificar antes de finalizar
+- `npm run db:generate`, `npm run db:migrate` — execute via Bash quando houver mudança de schema
+- SQL no Supabase — execute via MCP `mcp__plugin_supabase_supabase__execute_sql` ou `apply_migration`
+- Qualquer outro comando listado abaixo — Claude executa, nunca delega ao usuário
+
+Esta regra se aplica a todos os agentes especializados (`ai-pipeline`, `api-builder`, `admin-ui`, `db-engineer`, `cron-automator`, `public-frontend`). Nenhum agente deve encerrar uma tarefa listando "passos manuais" que o usuário precisa fazer — se há algo a executar, execute.
+
 ## Deployment
 
 **Never deploy directly to Vercel.** Always commit and push to GitHub — Vercel picks up the changes automatically via its GitHub integration.

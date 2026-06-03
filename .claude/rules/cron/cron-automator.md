@@ -34,7 +34,9 @@ Toda execução que gere (ou tente gerar) um post deve criar registro com:
 - Sempre verifique se `FIRECRAWL_API_KEY` está configurado antes de invocar `lib/firecrawl.ts`
 - Se não estiver configurado, o Researcher usa busca alternativa — nunca lance erro bloqueante por ausência do Firecrawl
 
-## pg_cron — SQL a fornecer sempre que criar novo endpoint de cron
+## pg_cron — execute o SQL diretamente via MCP
+Ao criar um novo endpoint de cron, execute o job no Supabase usando `mcp__plugin_supabase_supabase__execute_sql` — nunca liste o SQL como "passo manual" para o usuário rodar.
+
 ```sql
 SELECT cron.schedule('nome-do-job', 'expressão-cron',
   $$ SELECT net.http_post(url := '...',

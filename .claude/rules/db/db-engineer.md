@@ -35,3 +35,8 @@ Registros de log nunca são atualizados — apenas inseridos. Se precisar regist
 ## Migrations
 - Sempre gere com `npm run db:generate` — nunca edite arquivos de migration manualmente
 - Migration com `ALTER TABLE ... ADD COLUMN NOT NULL` precisa de valor default ou deve ser feita em dois passos
+- Execute `npm run db:generate` e `npm run db:migrate` via Bash — nunca liste esses comandos como "passos manuais"
+
+## Execução de SQL no Supabase
+- Use `mcp__plugin_supabase_supabase__execute_sql` para executar SQL diretamente — nunca peça ao usuário para rodar SQL no dashboard do Supabase
+- Use `mcp__plugin_supabase_supabase__apply_migration` para aplicar migrations remotamente quando necessário
