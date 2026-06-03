@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         {
           role: 'system' as const,
           content:
-            'Você é um especialista em criar prompts para geração de imagens por IA. Gere um prompt em inglês para criar uma imagem de capa profissional e atraente para o artigo descrito. A imagem deve ser adequada para um blog, em estilo fotorealista ou ilustração editorial. Responda APENAS com o prompt, sem explicações.',
+            'Você é um especialista em criar prompts para geração de imagens por IA. Gere um prompt em inglês para criar uma imagem de capa profissional e atraente para o artigo descrito. A imagem deve ser adequada para um blog, em estilo fotorealista ou ilustração editorial. A imagem não deve conter nenhum texto, letra, número ou palavra. Responda APENAS com o prompt, sem explicações.',
         },
         {
           role: 'user' as const,
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Falha ao gerar prompt de imagem' }, { status: 500 })
     }
 
-    const imageUrl = await callOpenRouterImage(finalPrompt)
+    const imageUrl = await callOpenRouterImage(`${finalPrompt}. No text, no letters, no words, no numbers anywhere in the image.`)
 
     let imageBuffer: Buffer
     let contentType = 'image/png'
