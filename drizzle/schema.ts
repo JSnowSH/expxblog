@@ -309,6 +309,31 @@ export const sourceCrawlerItems = pgTable(
   (t) => ({ uniq: uniqueIndex('source_crawler_items_crawler_item_uniq').on(t.crawler_id, t.item_key) })
 )
 
+export const aiRequestLogs = pgTable(
+  'ai_request_logs',
+  {
+    id: serial('id').primaryKey(),
+    feature: text('feature').notNull(),
+    model: text('model').notNull(),
+    prompt_tokens: integer('prompt_tokens').notNull().default(0),
+    completion_tokens: integer('completion_tokens').notNull().default(0),
+    total_tokens: integer('total_tokens').notNull().default(0),
+    cost_usd: real('cost_usd').notNull().default(0),
+    status: text('status').notNull().default('success'), // 'success' | 'error'
+    error: text('error'),
+    duration_ms: integer('duration_ms'),
+    created_at: timestamp('created_at').notNull().default(sql`now()`),
+  },
+  (t) => ({
+    createdAtIdx: index('ai_request_logs_created_at_idx').on(t.created_at),
+    featureIdx: index('ai_request_logs_feature_idx').on(t.feature),
+    modelIdx: index('ai_request_logs_model_idx').on(t.model),
+    statusIdx: index('ai_request_logs_status_idx').on(t.status),
+  })
+)
+
 export type SourceCrawler = typeof sourceCrawlers.$inferSelect
 export type NewSourceCrawler = typeof sourceCrawlers.$inferInsert
 export type SourceCrawlerItem = typeof sourceCrawlerItems.$inferSelect
+export type AiRequestLog = typeof aiRequestLogs.$inferSelect
+export type NewAiRequestLog = typeof aiRequestLogs.$inferInsert

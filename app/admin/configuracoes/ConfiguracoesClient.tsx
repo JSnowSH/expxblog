@@ -32,7 +32,7 @@ interface Props {
 }
 
 type CompanyKey = keyof CompanyInfo
-type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'firecrawl' | 'pexels' | 'api' | 'telegram'
+type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'api' | 'telegram'
 
 interface RemoteModel {
   id: string
@@ -58,6 +58,7 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
   { id: 'empresa', label: 'Dados da Empresa', icon: '🏢' },
   { id: 'redes', label: 'Redes Sociais', icon: '🌐' },
   { id: 'ia', label: 'IA (OpenRouter)', icon: '🤖' },
+  { id: 'ai-logs', label: 'Logs de IA', icon: '📊' },
   { id: 'firecrawl', label: 'Firecrawl', icon: '🔥' },
   { id: 'pexels', label: 'Pexels', icon: '📷' },
   { id: 'api', label: 'API', icon: '🔑' },
@@ -104,6 +105,42 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
   const [modelsLoading, setModelsLoading] = useState(false)
   const [webhookLoading, setWebhookLoading] = useState(false)
 
+  // AI Logs state
+  type AiLogEntry = {
+    id: number
+    feature: string
+    model: string
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+    cost_usd: number
+    status: string
+    error: string | null
+    duration_ms: number | null
+    created_at: string
+  }
+  type AiStats = {
+    period: string
+    totals: {
+      total_requests: number
+      total_tokens: number
+      total_cost_usd: number
+      success_count: number
+      error_count: number
+      avg_duration_ms: number
+    }
+    by_feature: { feature: string; request_count: number; total_tokens: number; total_cost_usd: number }[]
+    by_model: { model: string; request_count: number; total_tokens: number; total_cost_usd: number }[]
+  }
+  const [aiLogs, setAiLogs] = useState<AiLogEntry[]>([])
+  const [aiLogsTotal, setAiLogsTotal] = useState(0)
+  const [aiLogsPage, setAiLogsPage] = useState(1)
+  const [aiLogsPages, setAiLogsPages] = useState(1)
+  const [aiLogsPeriod, setAiLogsPeriod] = useState('7d')
+  const [aiLogsLoading, setAiLogsLoading] = useState(false)
+  const [aiStats, setAiStats] = useState<AiStats | null>(null)
+  const [aiStatsLoading, setAiStatsLoading] = useState(false)
+
   const IMAGE_FEATURES = new Set(['image_generation'])
 
   useEffect(() => {
@@ -122,6 +159,50 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
       })
       .finally(() => setModelsLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (activeSection === 'ai-logs') {
+      void fetchAiLogs(aiLogsPeriod, 1)
+      void fetchAiStats(aiLogsPeriod)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection])
+
+  async function fetchAiLogs(period: string, page: number) {
+    setAiLogsLoading(true)
+    try {
+      const res = await fetch(`/api/admin/ai-logs?period=${period}&page=${page}&limit=20`)
+      if (res.ok) {
+        const data = await res.json()
+        setAiLogs(data.data)
+        setAiLogsTotal(data.total)
+        setAiLogsPage(data.page)
+        setAiLogsPages(data.pages)
+      }
+    } finally {
+      setAiLogsLoading(false)
+    }
+  }
+
+  async function fetchAiStats(period: string) {
+    setAiStatsLoading(true)
+    try {
+      const res = await fetch(`/api/admin/ai-logs/stats?period=${period}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAiStats(data)
+      }
+    } finally {
+      setAiStatsLoading(false)
+    }
+  }
+
+  function handleAiLogsPeriodChange(period: string) {
+    setAiLogsPeriod(period)
+    setAiLogsPage(1)
+    void fetchAiLogs(period, 1)
+    void fetchAiStats(period)
+  }
 
   function handleChange(key: CompanyKey, value: string) {
     setCompany((prev) => ({ ...prev, [key]: value }))
@@ -444,6 +525,203 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                   {webhookLoading ? '⏳ Registrando...' : '🔗 Registrar Webhook'}
                 </button>
               </div>
+            </div>
+          </section>
+        )
+      case 'ai-logs':
+        return (
+          <section className="space-y-6">
+            {/* KPI Header */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-neutral-900">Logs de IA</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Requisições feitas via OpenRouter</p>
+                </div>
+                <div className="flex gap-2">
+                  {(['today', '7d', '30d'] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => handleAiLogsPeriodChange(p)}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        aiLogsPeriod === p
+                          ? 'bg-brand-primary text-white'
+                          : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p === 'today' ? 'Hoje' : p === '7d' ? '7 dias' : '30 dias'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {aiStatsLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : aiStats ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Requisições</p>
+                    <p className="text-2xl font-bold text-neutral-900">{aiStats.totals.total_requests.toLocaleString('pt-BR')}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      <span className="text-green-600">{aiStats.totals.success_count} ok</span>
+                      {aiStats.totals.error_count > 0 && (
+                        <span className="text-red-500 ml-2">{aiStats.totals.error_count} erros</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Tokens Usados</p>
+                    <p className="text-2xl font-bold text-neutral-900">{aiStats.totals.total_tokens.toLocaleString('pt-BR')}</p>
+                    <p className="text-xs text-gray-400 mt-1">total</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Custo Estimado</p>
+                    <p className="text-2xl font-bold text-neutral-900">
+                      ${aiStats.totals.total_cost_usd.toFixed(4)}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">USD</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 mb-1">Tempo Médio</p>
+                    <p className="text-2xl font-bold text-neutral-900">
+                      {aiStats.totals.avg_duration_ms > 0
+                        ? `${(aiStats.totals.avg_duration_ms / 1000).toFixed(1)}s`
+                        : '—'}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">por req.</p>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Por feature e modelo */}
+              {aiStats && aiStats.totals.total_requests > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Por Recurso</h3>
+                    <div className="space-y-2">
+                      {aiStats.by_feature.slice(0, 5).map((row) => (
+                        <div key={row.feature} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700 truncate">{row.feature}</span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-gray-500 text-xs">{row.request_count}x</span>
+                            <span className="text-gray-400 text-xs">{row.total_tokens.toLocaleString('pt-BR')} tok</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Por Modelo</h3>
+                    <div className="space-y-2">
+                      {aiStats.by_model.slice(0, 5).map((row) => (
+                        <div key={row.model} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700 truncate font-mono text-xs">{row.model}</span>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-gray-500 text-xs">{row.request_count}x</span>
+                            <span className="text-gray-400 text-xs">${row.total_cost_usd.toFixed(4)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Log Table */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-800 mb-4">Histórico de Requisições</h3>
+              {aiLogsLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-10 bg-gray-100 rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : aiLogs.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">Nenhum log encontrado para o período selecionado.</p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left py-2 pr-3 font-medium text-gray-500">Horário</th>
+                          <th className="text-left py-2 pr-3 font-medium text-gray-500">Recurso</th>
+                          <th className="text-left py-2 pr-3 font-medium text-gray-500">Modelo</th>
+                          <th className="text-right py-2 pr-3 font-medium text-gray-500">Tokens</th>
+                          <th className="text-right py-2 pr-3 font-medium text-gray-500">Custo</th>
+                          <th className="text-right py-2 pr-3 font-medium text-gray-500">Tempo</th>
+                          <th className="text-center py-2 font-medium text-gray-500">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {aiLogs.map((log) => (
+                          <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50">
+                            <td className="py-2 pr-3 text-gray-500 whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleString('pt-BR', {
+                                day: '2-digit', month: '2-digit',
+                                hour: '2-digit', minute: '2-digit',
+                              })}
+                            </td>
+                            <td className="py-2 pr-3 text-gray-700">{log.feature}</td>
+                            <td className="py-2 pr-3 text-gray-500 font-mono max-w-[140px] truncate">{log.model}</td>
+                            <td className="py-2 pr-3 text-right text-gray-700 tabular-nums">{log.total_tokens.toLocaleString('pt-BR')}</td>
+                            <td className="py-2 pr-3 text-right text-gray-700 tabular-nums">
+                              {log.cost_usd > 0 ? `$${log.cost_usd.toFixed(5)}` : '—'}
+                            </td>
+                            <td className="py-2 pr-3 text-right text-gray-500 tabular-nums">
+                              {log.duration_ms != null ? `${(log.duration_ms / 1000).toFixed(1)}s` : '—'}
+                            </td>
+                            <td className="py-2 text-center">
+                              {log.status === 'success' ? (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-100">ok</span>
+                              ) : (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-red-50 text-red-700 border border-red-100" title={log.error ?? ''}>erro</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Paginação */}
+                  {aiLogsPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-xs text-gray-500">{aiLogsTotal} registros no total</p>
+                      <div className="flex gap-2">
+                        <button
+                          disabled={aiLogsPage <= 1}
+                          onClick={() => {
+                            const newPage = aiLogsPage - 1
+                            setAiLogsPage(newPage)
+                            void fetchAiLogs(aiLogsPeriod, newPage)
+                          }}
+                          className="px-3 py-1 text-xs border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                        >
+                          Anterior
+                        </button>
+                        <span className="px-3 py-1 text-xs text-gray-600">{aiLogsPage} / {aiLogsPages}</span>
+                        <button
+                          disabled={aiLogsPage >= aiLogsPages}
+                          onClick={() => {
+                            const newPage = aiLogsPage + 1
+                            setAiLogsPage(newPage)
+                            void fetchAiLogs(aiLogsPeriod, newPage)
+                          }}
+                          className="px-3 py-1 text-xs border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                        >
+                          Próxima
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </section>
         )

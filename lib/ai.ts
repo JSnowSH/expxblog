@@ -61,6 +61,8 @@ export interface OpenRouterOptions {
   max_tokens?: number
   top_p?: number
   signal?: AbortSignal
+  /** Identificador da feature para fins de log (ex: 'content_generation') */
+  feature?: string
 }
 
 export interface OpenRouterResponse {
@@ -88,6 +90,26 @@ function injectDateContext(messages: OpenRouterMessage[]): OpenRouterMessage[] {
   )
 }
 
+async function persistAiLog(entry: {
+  feature: string
+  model: string
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  cost_usd: number
+  status: 'success' | 'error'
+  error?: string
+  duration_ms: number
+}): Promise<void> {
+  try {
+    const { db } = await import('@/drizzle/db')
+    const { aiRequestLogs } = await import('@/drizzle/schema')
+    await db.insert(aiRequestLogs).values(entry)
+  } catch {
+    // fire-and-forget — nunca bloqueia a chamada principal
+  }
+}
+
 export async function callOpenRouter(
   options: OpenRouterOptions,
   apiKey?: string
@@ -102,6 +124,8 @@ export async function callOpenRouter(
   const signal = options.signal
     ? AbortSignal.any([options.signal, timeout])
     : timeout
+
+  const startedAt = Date.now()
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -121,12 +145,46 @@ export async function callOpenRouter(
     }),
   })
 
+  const duration_ms = Date.now() - startedAt
+
   if (!response.ok) {
     const errorBody = await response.text()
+    void persistAiLog({
+      feature: options.feature ?? 'unknown',
+      model: options.model,
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+      cost_usd: 0,
+      status: 'error',
+      error: `HTTP ${response.status}`,
+      duration_ms,
+    })
     throw new Error(`OpenRouter API error (${response.status}): ${errorBody}`)
   }
 
-  return response.json() as Promise<OpenRouterResponse>
+  const data = (await response.json()) as OpenRouterResponse & {
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cost?: number }
+  }
+
+  const promptTokens = data.usage?.prompt_tokens ?? 0
+  const completionTokens = data.usage?.completion_tokens ?? 0
+  const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens)
+  // OpenRouter returns cost in USD directly when available
+  const costUsd = data.usage?.cost ?? 0
+
+  void persistAiLog({
+    feature: options.feature ?? 'unknown',
+    model: options.model,
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: totalTokens,
+    cost_usd: costUsd,
+    status: 'success',
+    duration_ms,
+  })
+
+  return data
 }
 
 export async function getAIModelFromDB(feature: AIFeature): Promise<string> {
@@ -207,6 +265,7 @@ export async function aiChat(
     messages,
     temperature: options?.temperature,
     max_tokens: options?.max_tokens,
+    feature,
   })
 
   return response.choices[0]?.message?.content ?? ''
@@ -239,24 +298,39 @@ export async function callOpenRouterImage(
   const resolvedModel = model ?? (await getAIModelFromDB('image_generation'))
   const modalities = isImageOnlyModel(resolvedModel) ? ['image'] : ['text', 'image']
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    signal: AbortSignal.timeout(180_000),
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-      'HTTP-Referer': getAppUrl(),
-      'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog',
-    },
-    body: JSON.stringify({
-      model: resolvedModel,
-      modalities,
-      max_tokens: 4096,
-      messages: [
-        { role: 'user', content: prompt },
-      ],
-    }),
-  })
+  const maxAttempts = 3
+  const signal = AbortSignal.timeout(180_000)
+  let response!: Response
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+        'HTTP-Referer': getAppUrl(),
+        'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog',
+      },
+      body: JSON.stringify({
+        model: resolvedModel,
+        modalities,
+        max_tokens: 4096,
+        messages: [
+          { role: 'user', content: prompt },
+        ],
+      }),
+    })
+
+    if (response.ok) break
+
+    if ((response.status === 502 || response.status === 503) && attempt < maxAttempts - 1) {
+      await new Promise((r) => setTimeout(r, 3000))
+      continue
+    }
+
+    const errorBody = await response.text()
+    throw new Error(`OpenRouter Image API error (${response.status}): ${errorBody}`)
+  }
 
   if (!response.ok) {
     const errorBody = await response.text()
@@ -273,7 +347,6 @@ export async function callOpenRouterImage(
   }
 
   const msg = data.choices?.[0]?.message
-  console.log('OpenRouter image response message:', JSON.stringify(msg ?? {}).substring(0, 1000))
 
   // top-level images array (some OpenRouter models)
   if (msg?.images && msg.images.length > 0) {
