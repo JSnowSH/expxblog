@@ -8,10 +8,12 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.supabase.co' },
     ],
   },
-  serverExternalPackages: ['css-tree'],
-  outputFileTracingIncludes: {
-    '/api/admin/db-migrate': ['./drizzle/migrations/**/*'],
-    '/admin': ['./drizzle/migrations/**/*'],
+  experimental: {
+    serverComponentsExternalPackages: ['css-tree'],
+    outputFileTracingIncludes: {
+      '/api/admin/db-migrate': ['./drizzle/migrations/**/*'],
+      '/admin': ['./drizzle/migrations/**/*'],
+    },
   },
 }
 
