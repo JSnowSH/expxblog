@@ -5,17 +5,18 @@ import { sql } from 'drizzle-orm'
 import { EMBEDDED_MIGRATIONS, MIGRATION_ORDER } from './migrations-embedded'
 
 /**
- * Converte a URL do pooler do Supabase para a URL de conexão direta.
- * Pooler session: postgres.PROJECT:SENHA@aws-0-REGION.pooler.supabase.com:5432
- * Direta:         postgres:SENHA@db.PROJECT.supabase.co:5432
+ * Converte a URL do pooler do Supabase para a URL de conexão direta, se aplicável.
+ * Pooler: postgres.PROJECT:SENHA@aws-0-REGION.pooler.supabase.com:PORT
+ * Direta: postgres:SENHA@db.PROJECT.supabase.co:5432
  *
- * Se não for URL do pooler Supabase, retorna a própria URL (pode já ser direta).
+ * Projetos Supabase antigos expõem o hostname direto; projetos novos só têm pooler.
+ * Por isso tentamos a direta primeiro e caímos para o pooler se o DNS falhar.
  */
-function toDirectUrl(poolerUrl: string): string {
+function toDirectUrl(poolerUrl: string): string | null {
   try {
     const u = new URL(poolerUrl)
-    const username = u.username // ex: postgres.xnfcfiyijamnjyidpxja
-    const host = u.hostname     // ex: aws-0-sa-east-1.pooler.supabase.com
+    const username = u.username
+    const host = u.hostname
 
     if (host.includes('.pooler.supabase.com') && username.startsWith('postgres.')) {
       const projectId = username.slice('postgres.'.length)
@@ -26,20 +27,61 @@ function toDirectUrl(poolerUrl: string): string {
       return directUrl.toString()
     }
   } catch {
-    // URL inválida — usa a original
+    // URL inválida
   }
-  return poolerUrl
+  return null
 }
 
-function getDirectClient(): ReturnType<typeof postgres> {
-  const poolerUrl = process.env.DATABASE_URL!
-  const directUrl = toDirectUrl(poolerUrl)
-  return postgres(directUrl, {
+function makeClient(url: string): ReturnType<typeof postgres> {
+  return postgres(url, {
     ssl: { rejectUnauthorized: false },
     max: 1,
     prepare: false,
     connect_timeout: 15,
+    idle_timeout: 5,
+    max_lifetime: 30,
   })
+}
+
+/**
+ * Executa uma operação com um cliente postgres dedicado de 1 conexão.
+ * Tenta a conexão direta primeiro; se o DNS falhar (ENOTFOUND/EAI_AGAIN),
+ * cai de volta para a URL original (pooler).
+ */
+async function withMigrationClient<T>(
+  fn: (client: ReturnType<typeof postgres>) => Promise<T>
+): Promise<T> {
+  const poolerUrl = process.env.DATABASE_URL!
+  const directUrl = toDirectUrl(poolerUrl)
+
+  if (directUrl) {
+    const directClient = makeClient(directUrl)
+    try {
+      return await fn(directClient)
+    } catch (err) {
+      const code = (err as { code?: string })?.code
+      // DNS não resolveu o hostname direto — projeto novo, usa o pooler
+      if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+        await directClient.end().catch(() => {})
+        const poolerClient = makeClient(poolerUrl)
+        try {
+          return await fn(poolerClient)
+        } finally {
+          await poolerClient.end().catch(() => {})
+        }
+      }
+      throw err
+    } finally {
+      await directClient.end().catch(() => {})
+    }
+  }
+
+  const poolerClient = makeClient(poolerUrl)
+  try {
+    return await fn(poolerClient)
+  } finally {
+    await poolerClient.end().catch(() => {})
+  }
 }
 
 async function getAppliedMigrations(): Promise<string[]> {
@@ -77,18 +119,15 @@ export async function getDbPendingMigrations(): Promise<string[]> {
 }
 
 export async function ensureMigrationsTable(): Promise<void> {
-  const client = getDirectClient()
-  try {
-    await client.unsafe(`
+  await withMigrationClient((client) =>
+    client.unsafe(`
       CREATE TABLE IF NOT EXISTS drizzle_migrations (
         id serial PRIMARY KEY,
         migration_name text NOT NULL UNIQUE,
         created_at timestamp DEFAULT now() NOT NULL
       )
     `)
-  } finally {
-    await client.end()
-  }
+  )
 }
 
 export async function applyMigration(tag: string): Promise<void> {
@@ -102,9 +141,8 @@ export async function applyMigration(tag: string): Promise<void> {
     .map((s) => s.trim())
     .filter(Boolean)
 
-  const client = getDirectClient()
-  try {
-    await client.begin(async (tx) => {
+  await withMigrationClient((client) =>
+    client.begin(async (tx) => {
       for (const statement of statements) {
         await tx.unsafe(statement)
       }
@@ -114,7 +152,5 @@ export async function applyMigration(tag: string): Promise<void> {
         ON CONFLICT (migration_name) DO NOTHING
       `
     })
-  } finally {
-    await client.end()
-  }
+  )
 }
