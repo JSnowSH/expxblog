@@ -32,7 +32,7 @@ interface Props {
 }
 
 type CompanyKey = keyof CompanyInfo
-type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'api' | 'telegram'
+type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'api' | 'telegram' | 'vercel'
 
 interface RemoteModel {
   id: string
@@ -60,6 +60,7 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
   { id: 'pexels', label: 'Pexels', icon: '📷' },
   { id: 'api', label: 'API', icon: '🔑' },
   { id: 'telegram', label: 'Telegram Bot', icon: '✈️' },
+  { id: 'vercel', label: 'Plano Vercel', icon: '▲' },
 ]
 
 const SECTIONS: Record<string, { fields: { key: CompanyKey; label: string; type?: string; placeholder?: string; multiline?: boolean }[] }> = {
@@ -101,6 +102,9 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
   const [availableImageModels, setAvailableImageModels] = useState<RemoteModel[]>([])
   const [modelsLoading, setModelsLoading] = useState(false)
   const [webhookLoading, setWebhookLoading] = useState(false)
+  const [vercelMaxDuration, setVercelMaxDuration] = useState<number>(300)
+  const [vercelSaving, setVercelSaving] = useState(false)
+  const [vercelDeploy, setVercelDeploy] = useState<number | null>(null)
 
   // AI Logs state
   type AiLogEntry = {
@@ -164,6 +168,12 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
     if (activeSection === 'ai-logs') {
       void fetchAiLogs(aiLogsPeriod, 1)
       void fetchAiStats(aiLogsPeriod)
+    }
+    if (activeSection === 'vercel') {
+      fetch('/api/admin/settings/vercel-max-duration')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d) setVercelMaxDuration(d.value) })
+        .catch(() => {})
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection])
@@ -257,6 +267,31 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
       setTimeout(() => setToast(null), 3000)
     } finally {
       setWebhookLoading(false)
+    }
+  }
+
+  async function handleVercelSave() {
+    setVercelSaving(true)
+    setToast(null)
+    setVercelDeploy(null)
+    try {
+      const res = await fetch('/api/admin/settings/vercel-max-duration', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: vercelMaxDuration }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Falha ao salvar')
+      }
+      setVercelDeploy(vercelMaxDuration)
+      setToast({ type: 'success', msg: 'Configuração salva! Siga o aviso abaixo para aplicar.' })
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar configuração.' })
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setVercelSaving(false)
     }
   }
 
@@ -752,6 +787,77 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                   )}
                 </>
               )}
+            </div>
+          </section>
+        )
+      case 'vercel':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Plano Vercel</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Define o tempo máximo de execução das funções de longa duração (pipelines de IA, crons de RSS, automação).
+              O valor deve corresponder ao plano contratado na Vercel — valores acima do limite do plano são ignorados.
+            </p>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Plano atual</label>
+                <select
+                  value={vercelMaxDuration}
+                  onChange={(e) => setVercelMaxDuration(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary bg-white"
+                >
+                  <option value={300}>Hobby / Free — 300 segundos</option>
+                  <option value={800}>Pro — 800 segundos</option>
+                  <option value={900}>Enterprise — 900 segundos</option>
+                </select>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleVercelSave}
+                disabled={vercelSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {vercelSaving ? 'Salvando...' : 'Salvar'}
+              </button>
+
+              {vercelDeploy !== null && (
+                <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 text-sm text-amber-900">
+                  <p className="font-semibold mb-2">Ação necessária para aplicar a mudança</p>
+                  <p className="mb-3">
+                    O Next.js exige que <code className="bg-amber-100 px-1 rounded font-mono">maxDuration</code> seja
+                    um número literal no código-fonte — não é possível lê-lo de variável de ambiente em runtime.
+                    Para aplicar o valor <strong>{vercelDeploy}s</strong>, é necessário alterar o código e fazer deploy.
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1 text-amber-800 text-xs">
+                    <li>
+                      Nas 7 rotas de longa duração do projeto, altere{' '}
+                      <code className="bg-amber-100 px-1 rounded font-mono">export const maxDuration = 300</code> para{' '}
+                      <code className="bg-amber-100 px-1 rounded font-mono">export const maxDuration = {vercelDeploy}</code>
+                    </li>
+                    <li>Faça commit e push para o GitHub — a Vercel fará o deploy automaticamente</li>
+                  </ol>
+                  <p className="mt-3 text-xs text-amber-700">
+                    Arquivos a editar: <code className="bg-amber-100 px-1 rounded font-mono">app/api/cron/rss</code>,{' '}
+                    <code className="bg-amber-100 px-1 rounded font-mono">app/api/cron/source-crawlers</code>,{' '}
+                    <code className="bg-amber-100 px-1 rounded font-mono">app/api/cron/automation</code>,{' '}
+                    <code className="bg-amber-100 px-1 rounded font-mono">app/api/admin/rss/check</code>,{' '}
+                    <code className="bg-amber-100 px-1 rounded font-mono">app/api/admin/rss/[id]/check</code>,{' '}
+                    <code className="bg-amber-100 px-1 rounded font-mono">app/api/admin/rss/items/[itemId]/process</code>,{' '}
+                    <code className="bg-amber-100 px-1 rounded font-mono">app/api/admin/agents/run</code>
+                  </p>
+                </div>
+              )}
+
+              <div className="border border-gray-100 bg-gray-50 rounded-xl p-4 text-xs text-gray-500">
+                <p className="font-medium text-gray-700 mb-1">Limites por plano</p>
+                <ul className="space-y-1">
+                  <li><strong>Hobby / Free</strong> — máximo 300s por função</li>
+                  <li><strong>Pro</strong> — máximo 800s por função</li>
+                  <li><strong>Enterprise</strong> — máximo 900s por função</li>
+                </ul>
+              </div>
             </div>
           </section>
         )
