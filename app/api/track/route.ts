@@ -5,22 +5,58 @@ import { eq, and, gte } from 'drizzle-orm'
 import { createHash } from 'crypto'
 
 /**
+ * Trunca o IP antes de hashear, reduzindo a entropia recuperável.
+ *
+ * IPv4: zera o último octeto (ex: 192.168.1.55 → 192.168.1.0).
+ * IPv6: mantém apenas os primeiros 4 grupos de 16 bits (/64), zerando o restante.
+ * IP inválido ou 'unknown': retorna como está — analytics é não-crítico.
+ *
+ * Nota de privacidade: visitantes na mesma sub-rede /24 (IPv4) podem colidir na
+ * janela de dedup de 5 min — isso é intencional e desejável para privacidade.
+ * Art. 46 §2 LGPD — medida técnica de minimização de dados.
+ */
+function truncateIp(ip: string): string {
+  if (!ip || ip === 'unknown') return ip
+
+  // IPv4: a.b.c.d → a.b.c.0
+  const ipv4 = ip.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/)
+  if (ipv4) return `${ipv4[1]}.0`
+
+  // IPv6: mantém os primeiros 4 grupos, zera o restante (ex: 2001:db8:cafe:1::)
+  const ipv6groups = ip.split(':')
+  if (ipv6groups.length >= 4) {
+    return `${ipv6groups.slice(0, 4).join(':')}::`
+  }
+
+  // Não identificado como IPv4 nem IPv6 — retorna como está
+  return ip
+}
+
+/**
  * Gera um fingerprint anonimizado para deduplicação de page views.
  *
- * Salt diário: deriva da data (YYYY-MM-DD) + JWT_SECRET — garante que o hash
- * seja diferente a cada dia, impossibilitando reconstruir o IP original.
+ * Salt dedicado: usa ANALYTICS_SALT (variável de ambiente separada do JWT_SECRET),
+ * com fallback para JWT_SECRET caso ANALYTICS_SALT não esteja configurado —
+ * garantindo retrocompatibilidade em ambientes sem a nova variável.
+ * Se ambos estiverem ausentes, usa string vazia (analytics não é crítico).
  *
- * Nota sobre dedup de 5 min: a janela de deduplicação é sempre dentro do mesmo
- * dia, portanto o salt não muda durante a janela. Na virada do dia o salt muda
- * e uma nova visita gera hash diferente — comportamento esperado.
+ * O IP é truncado via truncateIp() antes de entrar no hash, eliminando o octeto
+ * identificador do host. Isso reduz a precisão da dedup (colisão em /24 aceitável)
+ * e impede reconstituição do IP original mesmo com a chave de salt.
  *
- * Art. 7º e 5º LGPD — dado pessoal anonimizado não está sujeito ao tratamento.
+ * Salt diário: deriva da data (YYYY-MM-DD) + salt — garante que o hash seja
+ * diferente a cada dia. Na virada do dia o salt muda e uma nova visita gera
+ * hash diferente — comportamento esperado.
+ *
+ * Art. 5º, 7º e 46 §2 LGPD — dado pessoal anonimizado não está sujeito ao tratamento.
  */
 function hashFingerprint(ip: string, path: string): string {
   const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
-  const secret = process.env.JWT_SECRET ?? ''
+  // ANALYTICS_SALT é o segredo dedicado para analytics; JWT_SECRET é o fallback
+  const secret = process.env.ANALYTICS_SALT ?? process.env.JWT_SECRET ?? ''
   const salt = today + secret
-  return createHash('sha256').update(ip + path + salt).digest('hex')
+  const truncatedIp = truncateIp(ip)
+  return createHash('sha256').update(truncatedIp + path + salt).digest('hex')
 }
 
 export async function POST(request: NextRequest) {

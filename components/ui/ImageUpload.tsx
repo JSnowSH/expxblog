@@ -12,7 +12,7 @@ interface ImageUploadProps {
 
 function SparkleIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
     </svg>
   )
@@ -56,7 +56,7 @@ export function ImageUpload({ value, onChange, variant = 'image', aiContext }: I
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? 'Erro ao gerar imagem')
+        setError(data.error ?? 'Erro ao gerar imagem de capa')
         return
       }
       onChange(data.url)
@@ -147,7 +147,7 @@ export function ImageUpload({ value, onChange, variant = 'image', aiContext }: I
           ) : (
             <>
               <SparkleIcon className="h-4 w-4" />
-              Gerar Imagem com IA
+              Gerar imagem de capa
             </>
           )}
         </button>
