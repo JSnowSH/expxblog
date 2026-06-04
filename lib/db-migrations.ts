@@ -10,14 +10,31 @@ async function getAppliedMigrations(): Promise<string[]> {
     )
     return (rows as unknown as { migration_name: string }[]).map((r) => r.migration_name)
   } catch {
-    // Qualquer erro aqui significa que drizzle_migrations não existe ainda (banco em branco)
     return []
+  }
+}
+
+async function siteSettingsExists(): Promise<boolean> {
+  try {
+    await db.execute(sql`SELECT 1 FROM site_settings LIMIT 1`)
+    return true
+  } catch {
+    return false
   }
 }
 
 export async function getDbPendingMigrations(): Promise<string[]> {
   const applied = await getAppliedMigrations()
-  return MIGRATION_ORDER.filter((tag) => !applied.includes(tag))
+  const pending = MIGRATION_ORDER.filter((tag) => !applied.includes(tag))
+
+  // Se drizzle_migrations não existe mas site_settings existe, o banco foi configurado
+  // pelo setup (não pelo migrator). Não há migrations a aplicar.
+  if (pending.length === MIGRATION_ORDER.length && applied.length === 0) {
+    const hasSchema = await siteSettingsExists()
+    if (hasSchema) return []
+  }
+
+  return pending
 }
 
 export async function ensureMigrationsTable(): Promise<void> {
