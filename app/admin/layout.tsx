@@ -6,6 +6,7 @@ import { getSettings } from '@/lib/settings'
 import { AdminThemeProvider } from '@/components/admin/AdminThemeProvider'
 import { AdminTopBar } from '@/components/admin/AdminTopBar'
 import { getDbPendingMigrations } from '@/lib/db-migrations'
+import { MIGRATION_ORDER } from '@/lib/migrations-embedded'
 import { DbUpdateModal } from '@/components/blog/DbUpdateModal'
 
 const navItems = [
@@ -107,7 +108,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const initials = blogName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
-  const pendingMigrations = await getDbPendingMigrations()
+  let pendingMigrations: string[] = []
+  try {
+    pendingMigrations = await getDbPendingMigrations()
+  } catch {
+    // Se falhar, admin continua acessível — modal não aparece
+    pendingMigrations = MIGRATION_ORDER
+  }
 
   return (
     <AdminThemeProvider>

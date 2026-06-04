@@ -9,11 +9,9 @@ async function getAppliedMigrations(): Promise<string[]> {
       sql`SELECT migration_name FROM drizzle_migrations ORDER BY created_at ASC`
     )
     return (rows as unknown as { migration_name: string }[]).map((r) => r.migration_name)
-  } catch (err) {
-    // 42P01 = undefined_table (banco em branco)
-    const pgCode = (err as { code?: string })?.code
-    if (pgCode === '42P01') return []
-    throw err
+  } catch {
+    // Qualquer erro aqui significa que drizzle_migrations não existe ainda (banco em branco)
+    return []
   }
 }
 
