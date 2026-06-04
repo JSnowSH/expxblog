@@ -235,6 +235,30 @@ CREATE TABLE IF NOT EXISTS "webhooks" (
 
 CREATE INDEX IF NOT EXISTS "webhooks_enabled_idx" ON "webhooks" ("enabled");
 
+CREATE TABLE IF NOT EXISTS "chat_conversations" (
+  "id" serial PRIMARY KEY NOT NULL,
+  "user_id" integer NOT NULL,
+  "title" text NOT NULL DEFAULT 'Nova conversa',
+  "created_at" timestamp NOT NULL DEFAULT now(),
+  "updated_at" timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS "chat_conversations_user_id_idx" ON "chat_conversations" ("user_id");
+
+CREATE TABLE IF NOT EXISTS "chat_messages" (
+  "id" serial PRIMARY KEY NOT NULL,
+  "conversation_id" integer NOT NULL REFERENCES "chat_conversations"("id") ON DELETE CASCADE,
+  "role" text NOT NULL,
+  "content" text NOT NULL DEFAULT '',
+  "tool_calls" text,
+  "tool_name" text,
+  "model" text,
+  "tokens_used" integer,
+  "created_at" timestamp NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS "chat_messages_conversation_id_idx" ON "chat_messages" ("conversation_id");
+
 -- Default agents_extra: Designer uses SVG code generation (gratuito, sem custo externo)
 INSERT INTO "site_settings" ("key", "value", "updated_at")
 VALUES (
@@ -243,4 +267,40 @@ VALUES (
   now()
 )
 ON CONFLICT ("key") DO NOTHING;
+
+-- Bucket de Storage para uploads de imagens (tolerante a falha)
+DO $$
+BEGIN
+  -- Cria ou atualiza o bucket público de uploads
+  EXECUTE $sql$
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES (
+      'uploads',
+      'uploads',
+      true,
+      10485760,
+      ARRAY['image/jpeg','image/png','image/webp','image/gif','image/svg+xml']
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      public = EXCLUDED.public,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types
+  $sql$;
+
+  -- Remove policies antigas (idempotência) e recria apenas a de SELECT público
+  EXECUTE $sql$ DROP POLICY IF EXISTS "Service role upload" ON storage.objects $sql$;
+  EXECUTE $sql$ DROP POLICY IF EXISTS "Public read uploads" ON storage.objects $sql$;
+  EXECUTE $sql$
+    CREATE POLICY "Public read uploads"
+      ON storage.objects FOR SELECT
+      TO public
+      USING (bucket_id = 'uploads')
+  $sql$;
+
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'storage: privilégio insuficiente — bucket/policies não criados (non-fatal)';
+  WHEN others THEN
+    RAISE NOTICE 'storage: erro ao provisionar bucket (non-fatal): %', SQLERRM;
+END $$;
 `

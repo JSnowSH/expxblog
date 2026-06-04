@@ -253,6 +253,74 @@ ALTER TABLE "newsletter_subscribers" ADD CONSTRAINT "newsletter_subscribers_unsu
 
   '0004_magenta_william_stryker': `ALTER TABLE "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "consent_at" timestamp;--> statement-breakpoint
 ALTER TABLE "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "consent_text_version" text;`,
+
+  '0005_stormy_silver_centurion': `CREATE TABLE IF NOT EXISTS "chat_conversations" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"user_id" integer NOT NULL,
+	"title" text DEFAULT 'Nova conversa' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "chat_messages" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"conversation_id" integer NOT NULL,
+	"role" text NOT NULL,
+	"content" text DEFAULT '' NOT NULL,
+	"tool_calls" text,
+	"tool_name" text,
+	"model" text,
+	"tokens_used" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'chat_messages_conversation_id_chat_conversations_id_fk'
+  ) THEN
+    ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_conversation_id_chat_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."chat_conversations"("id") ON DELETE cascade ON UPDATE no action;
+  END IF;
+END $$;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "chat_conversations_user_id_idx" ON "chat_conversations" USING btree ("user_id");
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "chat_messages_conversation_id_idx" ON "chat_messages" USING btree ("conversation_id");`,
+
+  '0006_provision_storage_bucket': `DO $$
+BEGIN
+  -- Cria ou atualiza o bucket público de uploads
+  EXECUTE $sql$
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES (
+      'uploads',
+      'uploads',
+      true,
+      10485760,
+      ARRAY['image/jpeg','image/png','image/webp','image/gif','image/svg+xml']
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      public = EXCLUDED.public,
+      file_size_limit = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types
+  $sql$;
+
+  -- Remove policies antigas (idempotência) e recria apenas a de SELECT público
+  EXECUTE $sql$ DROP POLICY IF EXISTS "Service role upload" ON storage.objects $sql$;
+  EXECUTE $sql$ DROP POLICY IF EXISTS "Public read uploads" ON storage.objects $sql$;
+  EXECUTE $sql$
+    CREATE POLICY "Public read uploads"
+      ON storage.objects FOR SELECT
+      TO public
+      USING (bucket_id = 'uploads')
+  $sql$;
+
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE 'storage: privilégio insuficiente — bucket/policies não criados (non-fatal)';
+  WHEN others THEN
+    RAISE NOTICE 'storage: erro ao provisionar bucket (non-fatal): %', SQLERRM;
+END $$;`,
 }
 
 // Ordem de aplicação (mesma do _journal.json)
@@ -262,4 +330,6 @@ export const MIGRATION_ORDER = [
   '0002_messy_omega_red',
   '0003_careless_fixer',
   '0004_magenta_william_stryker',
+  '0005_stormy_silver_centurion',
+  '0006_provision_storage_bucket',
 ]
