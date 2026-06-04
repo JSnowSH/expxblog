@@ -1,6 +1,7 @@
 // app/api/admin/db-migrate/route.ts
 import { getDbPendingMigrations, ensureMigrationsTable, applyMigration, invalidateCronStatusCache } from '@/lib/db-migrations'
 import { ensureCrons } from '@/lib/supabase-cron'
+import { getAppUrlFromRequest } from '@/lib/app-url'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -16,8 +17,11 @@ function makeEvent(event: MigrateEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const encoder = new TextEncoder()
+  // URL pública derivada do próprio request — é por ela que o admin está acessando.
+  // Não depende de NEXT_PUBLIC_APP_URL configurada (instalação nova pode não ter).
+  const appUrl = getAppUrlFromRequest(req)
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -53,7 +57,7 @@ export async function POST() {
         // 2. Reconciliar crons (estrutura versionada): cria as faltantes,
         //    remove as que não devem existir. Sempre roda — mesmo sem migrations.
         send({ type: 'cron', status: 'applying' })
-        const report = await ensureCrons()
+        const report = await ensureCrons({ appUrl: appUrl ?? undefined })
         invalidateCronStatusCache()
 
         if (!report.extensionsOk) {
