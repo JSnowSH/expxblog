@@ -14,6 +14,7 @@ export interface AgentExtra {
   use_firecrawl?: boolean
   image_source?: 'ai' | 'pexels'
   reviewer_enabled?: boolean
+  designer_enabled?: boolean
 }
 
 export async function getAgentsExtra(): Promise<Record<string, AgentExtra>> {

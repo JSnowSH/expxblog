@@ -10,15 +10,21 @@ export type AIFeature =
   | 'category_matching'
   | string
 
+// Free Models Router do OpenRouter: escolhe automaticamente a melhor LLM
+// gratuita disponível. É o padrão de texto do sistema para funcionar sem créditos.
+const FREE_MODEL = 'openrouter/free'
+
 const DEFAULT_MODELS: Record<string, string> = {
-  content_generation: 'openai/gpt-4o-mini',
-  image_description: 'openai/gpt-4o-mini',
+  content_generation: FREE_MODEL,
+  image_description: FREE_MODEL,
+  // image_generation é o único que NÃO usa o Free Router (que é só texto).
+  // Mantém um modelo de imagem por IA para quem optar por capa gerada por IA.
   image_generation: 'openai/gpt-5-image',
-  briefing_generation: 'openai/gpt-4o-mini',
-  prompt_generation: 'openai/gpt-4o-mini',
-  theme_suggestion: 'openai/gpt-4o-mini',
-  category_matching: 'openai/gpt-4o-mini',
-  url_extraction: 'openai/gpt-4o-mini',
+  briefing_generation: FREE_MODEL,
+  prompt_generation: FREE_MODEL,
+  theme_suggestion: FREE_MODEL,
+  category_matching: FREE_MODEL,
+  url_extraction: FREE_MODEL,
 }
 
 export function getDefaultModels(): Record<string, string> {
@@ -26,7 +32,7 @@ export function getDefaultModels(): Record<string, string> {
 }
 
 export function getDefaultModel(feature: AIFeature): string {
-  return DEFAULT_MODELS[feature] ?? 'openai/gpt-4o-mini'
+  return DEFAULT_MODELS[feature] ?? FREE_MODEL
 }
 
 export async function getAIApiKey(): Promise<string | null> {

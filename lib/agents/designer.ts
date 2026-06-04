@@ -16,7 +16,7 @@ export async function runDesignerAgent(
 
   const config = await getAgentConfig('designer')
   const extra = await getAgentsExtra()
-  const imageSource = extra['designer']?.image_source ?? 'ai'
+  const imageSource = extra['designer']?.image_source ?? 'pexels'
 
   const rawPrompt = await aiChat(
     'prompt_generation',

@@ -1,5 +1,5 @@
 // lib/agent-pipeline.ts
-import { getAIApiKey, callOpenRouter } from '@/lib/ai'
+import { getAIApiKey, callOpenRouter, getAIModelFromDB } from '@/lib/ai'
 import { runHeadlineAgent } from '@/lib/agents/headline'
 import { runResearcherAgent } from '@/lib/agents/researcher'
 import { runAnalystAgent } from '@/lib/agents/analyst'
@@ -45,10 +45,11 @@ ${issues.map((i, n) => `${n + 1}. ${i}`).join('\n')}`
   try {
     const resp = await callOpenRouter(
       {
-        model: 'openai/gpt-4o-mini',
+        model: await getAIModelFromDB('content_generation'),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
         max_tokens: 400,
+        feature: 'content_generation',
       },
       apiKey
     )
@@ -250,16 +251,21 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         if (ctaResult.success) Object.assign(ctx, ctaResult.data)
         send(makeEvent('agent_done', ctaResult.message, 'cta'))
 
-        // 7. Designer
+        // 7. Designer (pulado se desabilitado em agents_extra — ex: usuário sem Pexels)
         if (aborted()) { send(makeEvent('pipeline_error', 'Pipeline interrompido pelo usuário')); controller.close(); return }
-        send(makeEvent('agent_start', 'Gerando imagem de capa...', 'designer'))
-        try {
-          const designResult = await runDesignerAgent(ctx, apiKey)
-          if (designResult.success) Object.assign(ctx, designResult.data)
-          send(makeEvent('agent_done', designResult.message, 'designer'))
-        } catch (imgErr) {
-          const msg = imgErr instanceof Error ? imgErr.message : String(imgErr)
-          send(makeEvent('agent_error', `Imagem falhou (continuando): ${msg}`, 'designer'))
+        const designerEnabled = agentsExtra['designer']?.designer_enabled ?? true
+        if (designerEnabled) {
+          send(makeEvent('agent_start', 'Gerando imagem de capa...', 'designer'))
+          try {
+            const designResult = await runDesignerAgent(ctx, apiKey)
+            if (designResult.success) Object.assign(ctx, designResult.data)
+            send(makeEvent('agent_done', designResult.message, 'designer'))
+          } catch (imgErr) {
+            const msg = imgErr instanceof Error ? imgErr.message : String(imgErr)
+            send(makeEvent('agent_error', `Imagem falhou (continuando): ${msg}`, 'designer'))
+          }
+        } else {
+          send(makeEvent('agent_done', 'Geração de capa desabilitada — artigo sem imagem', 'designer'))
         }
 
         // 8. Publisher
