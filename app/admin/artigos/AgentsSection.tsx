@@ -66,7 +66,7 @@ export default function AgentsSection() {
   const [toast, setToast] = useState<Toast | null>(null)
   const [firecrawlConfigured, setFirecrawlConfigured] = useState(false)
   const [pexelsConfigured, setPexelsConfigured] = useState(false)
-  const [agentsExtra, setAgentsExtra] = useState<Record<string, { use_firecrawl?: boolean; image_source?: 'ai' | 'pexels'; reviewer_enabled?: boolean }>>({})
+  const [agentsExtra, setAgentsExtra] = useState<Record<string, { use_firecrawl?: boolean; image_source?: 'ai' | 'pexels' | 'code'; code_style?: 'gradient' | 'geometric'; reviewer_enabled?: boolean }>>({})
   const [savingExtra, setSavingExtra] = useState<AgentId | null>(null)
 
   // Pipeline runner state
@@ -98,7 +98,7 @@ export default function AgentsSection() {
 
     fetch('/api/admin/agents/extra')
       .then((r) => r.json())
-      .then((data: { firecrawl_configured?: boolean; pexels_configured?: boolean; agents_extra?: Record<string, { use_firecrawl?: boolean; image_source?: 'ai' | 'pexels'; reviewer_enabled?: boolean }> }) => {
+      .then((data: { firecrawl_configured?: boolean; pexels_configured?: boolean; agents_extra?: Record<string, { use_firecrawl?: boolean; image_source?: 'ai' | 'pexels' | 'code'; code_style?: 'gradient' | 'geometric'; reviewer_enabled?: boolean }> }) => {
         setFirecrawlConfigured(data.firecrawl_configured ?? false)
         setPexelsConfigured(data.pexels_configured ?? false)
         setAgentsExtra(data.agents_extra ?? {})
@@ -174,7 +174,7 @@ export default function AgentsSection() {
     }
   }
 
-  async function setImageSource(source: 'ai' | 'pexels') {
+  async function setImageSource(source: 'ai' | 'pexels' | 'code') {
     const updated = { ...agentsExtra, designer: { ...(agentsExtra['designer'] ?? {}), image_source: source } }
     setAgentsExtra(updated)
     setSavingExtra('designer')
@@ -184,9 +184,27 @@ export default function AgentsSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agents_extra: updated }),
       })
-      setToast({ type: 'success', msg: `Fonte de imagem alterada para ${source === 'pexels' ? 'Pexels' : 'IA'}` })
+      setToast({ type: 'success', msg: `Fonte de imagem alterada para ${source === 'pexels' ? 'Pexels' : source === 'code' ? 'Código (SVG)' : 'IA'}` })
     } catch {
       setToast({ type: 'error', msg: 'Erro ao salvar' })
+    } finally {
+      setSavingExtra(null)
+    }
+  }
+
+  async function setCodeStyle(style: 'gradient' | 'geometric') {
+    const updated = { ...agentsExtra, designer: { ...(agentsExtra['designer'] ?? {}), code_style: style } }
+    setAgentsExtra(updated)
+    setSavingExtra('designer')
+    try {
+      await fetch('/api/admin/agents/extra', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents_extra: updated }),
+      })
+      setToast({ type: 'success', msg: `Estilo SVG alterado para ${style === 'geometric' ? 'Padrão Geométrico' : 'Gradiente + Título'}` })
+    } catch {
+      setToast({ type: 'error', msg: 'Erro ao salvar estilo SVG' })
     } finally {
       setSavingExtra(null)
     }
@@ -504,17 +522,17 @@ export default function AgentsSection() {
                     </div>
                   )}
 
-                  {/* Pexels image source selector — designer only */}
-                  {cfg.id === 'designer' && pexelsConfigured && (
+                  {/* Fonte da Imagem de Capa — designer only, sempre visível */}
+                  {cfg.id === 'designer' && (
                     <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <p className="text-xs font-medium text-green-900 mb-2">Fonte da Imagem de Capa</p>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <button
                           type="button"
                           disabled={savingExtra === 'designer'}
                           onClick={() => setImageSource('ai')}
                           className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
-                            (agentsExtra['designer']?.image_source ?? 'ai') === 'ai'
+                            (agentsExtra['designer']?.image_source ?? 'pexels') === 'ai'
                               ? 'bg-brand-primary text-white border-brand-primary'
                               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                           }`}
@@ -523,20 +541,74 @@ export default function AgentsSection() {
                         </button>
                         <button
                           type="button"
-                          disabled={savingExtra === 'designer'}
-                          onClick={() => setImageSource('pexels')}
+                          disabled={savingExtra === 'designer' || !pexelsConfigured}
+                          onClick={() => pexelsConfigured && setImageSource('pexels')}
+                          title={pexelsConfigured ? undefined : 'Configure a chave Pexels em Configurações para usar esta opção'}
                           className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
                             agentsExtra['designer']?.image_source === 'pexels'
                               ? 'bg-green-600 text-white border-green-600'
                               : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
+                          } ${!pexelsConfigured ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
                           📷 Buscar no Pexels
                         </button>
+                        <button
+                          type="button"
+                          disabled={savingExtra === 'designer'}
+                          onClick={() => setImageSource('code')}
+                          className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
+                            agentsExtra['designer']?.image_source === 'code'
+                              ? 'bg-purple-600 text-white border-purple-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Gerar por codigo (SVG)
+                        </button>
                       </div>
+
+                      {/* Sub-seletor de estilo — visível apenas quando code está selecionado */}
+                      {agentsExtra['designer']?.image_source === 'code' && (
+                        <div className="mt-3 pt-3 border-t border-green-200">
+                          <p className="text-xs font-medium text-green-800 mb-2">Estilo do SVG</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={savingExtra === 'designer'}
+                              onClick={() => setCodeStyle('gradient')}
+                              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
+                                (agentsExtra['designer']?.code_style ?? 'gradient') === 'gradient'
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              Gradiente + titulo
+                            </button>
+                            <button
+                              type="button"
+                              disabled={savingExtra === 'designer'}
+                              onClick={() => setCodeStyle('geometric')}
+                              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
+                                agentsExtra['designer']?.code_style === 'geometric'
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              Padrao geometrico
+                            </button>
+                          </div>
+                          <p className="text-xs text-green-700 mt-2">
+                            {(agentsExtra['designer']?.code_style ?? 'gradient') === 'geometric'
+                              ? 'Formas geometricas abstratas derivadas deterministicamente do titulo do artigo. Sem texto.'
+                              : 'Card com gradiente nas cores do sistema, titulo em destaque e label da categoria.'}
+                          </p>
+                        </div>
+                      )}
+
                       <p className="text-xs text-green-700 mt-2">
-                        {(agentsExtra['designer']?.image_source ?? 'ai') === 'pexels'
+                        {agentsExtra['designer']?.image_source === 'pexels'
                           ? 'O agente vai gerar uma query de busca e encontrar uma foto relacionada no Pexels.'
+                          : agentsExtra['designer']?.image_source === 'code'
+                          ? 'A capa e gerada localmente em SVG — sem IA, sem custo externo, usando as cores do sistema.'
                           : 'O agente vai gerar um prompt e criar a imagem via modelo de IA.'}
                       </p>
                     </div>
