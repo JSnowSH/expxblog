@@ -4,9 +4,37 @@ import { db } from '@/drizzle/db'
 import { sql } from 'drizzle-orm'
 import { EMBEDDED_MIGRATIONS, MIGRATION_ORDER } from './migrations-embedded'
 
-// Usa o cliente postgres direto para DDL — o Drizzle com pooler pode rejeitar CREATE TABLE
-function getRawClient(): ReturnType<typeof postgres> {
-  return postgres(process.env.DATABASE_URL!, {
+/**
+ * Converte a URL do pooler do Supabase para a URL de conexão direta.
+ * Pooler session: postgres.PROJECT:SENHA@aws-0-REGION.pooler.supabase.com:5432
+ * Direta:         postgres:SENHA@db.PROJECT.supabase.co:5432
+ *
+ * Se não for URL do pooler Supabase, retorna a própria URL (pode já ser direta).
+ */
+function toDirectUrl(poolerUrl: string): string {
+  try {
+    const u = new URL(poolerUrl)
+    const username = u.username // ex: postgres.xnfcfiyijamnjyidpxja
+    const host = u.hostname     // ex: aws-0-sa-east-1.pooler.supabase.com
+
+    if (host.includes('.pooler.supabase.com') && username.startsWith('postgres.')) {
+      const projectId = username.slice('postgres.'.length)
+      const directUrl = new URL(poolerUrl)
+      directUrl.username = 'postgres'
+      directUrl.hostname = `db.${projectId}.supabase.co`
+      directUrl.port = '5432'
+      return directUrl.toString()
+    }
+  } catch {
+    // URL inválida — usa a original
+  }
+  return poolerUrl
+}
+
+function getDirectClient(): ReturnType<typeof postgres> {
+  const poolerUrl = process.env.DATABASE_URL!
+  const directUrl = toDirectUrl(poolerUrl)
+  return postgres(directUrl, {
     ssl: { rejectUnauthorized: false },
     max: 1,
     prepare: false,
@@ -49,7 +77,7 @@ export async function getDbPendingMigrations(): Promise<string[]> {
 }
 
 export async function ensureMigrationsTable(): Promise<void> {
-  const client = getRawClient()
+  const client = getDirectClient()
   try {
     await client.unsafe(`
       CREATE TABLE IF NOT EXISTS drizzle_migrations (
@@ -74,9 +102,8 @@ export async function applyMigration(tag: string): Promise<void> {
     .map((s) => s.trim())
     .filter(Boolean)
 
-  const client = getRawClient()
+  const client = getDirectClient()
   try {
-    // Executa todos os statements + registro em uma única transação
     await client.begin(async (tx) => {
       for (const statement of statements) {
         await tx.unsafe(statement)
