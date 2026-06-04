@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePageTitle } from '@/components/admin/AdminPageTitleContext'
 import { Button } from '@/components/ui/Button'
 import type { NewsletterConfig } from '@/lib/settings'
 
@@ -12,6 +13,12 @@ interface Subscriber {
   unsubscribed_at: string | null
 }
 
+interface NewsletterSettings {
+  resend_api_key: string
+  newsletter_from_email: string
+  newsletter_auto_send: boolean
+}
+
 interface Props {
   initialConfig: NewsletterConfig
 }
@@ -20,6 +27,16 @@ export function NewsletterClient({ initialConfig }: Props) {
   const [config, setConfig] = useState<NewsletterConfig>(initialConfig)
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [loadingSubscribers, setLoadingSubscribers] = useState(true)
+  const [settings, setSettings] = useState<NewsletterSettings>({
+    resend_api_key: '',
+    newsletter_from_email: '',
+    newsletter_auto_send: false,
+  })
+  const [loadingSettings, setLoadingSettings] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [sendingTest, setSendingTest] = useState(false)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [unsubscribing, setUnsubscribing] = useState<number | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/newsletter')
@@ -39,14 +56,21 @@ export function NewsletterClient({ initialConfig }: Props) {
       })
       .catch(() => {})
       .finally(() => setLoadingSubscribers(false))
+
+    fetch('/api/admin/newsletter/settings')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.settings) {
+          setSettings(data.settings)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSettings(false))
   }, [])
-  const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [unsubscribing, setUnsubscribing] = useState<number | null>(null)
 
   function showToast(type: 'success' | 'error', msg: string) {
     setToast({ type, msg })
-    setTimeout(() => setToast(null), 4000)
+    setTimeout(() => setToast(null), 3000)
   }
 
   async function handleSave() {
@@ -61,6 +85,17 @@ export function NewsletterClient({ initialConfig }: Props) {
         const data = await res.json()
         throw new Error(data.error ?? 'Falha ao salvar')
       }
+
+      const res2 = await fetch('/api/admin/newsletter/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      })
+      if (!res2.ok) {
+        const data = await res2.json()
+        throw new Error(data.error ?? 'Falha ao salvar configurações de envio')
+      }
+
       showToast('success', 'Configurações salvas com sucesso!')
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : 'Erro ao salvar.')
@@ -86,17 +121,33 @@ export function NewsletterClient({ initialConfig }: Props) {
     }
   }
 
+  async function handleSendTest() {
+    setSendingTest(true)
+    try {
+      const res = await fetch('/api/admin/newsletter/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Falha ao enviar e-mail de teste')
+      showToast('success', 'E-mail de teste enviado!')
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Erro ao enviar teste.')
+    } finally {
+      setSendingTest(false)
+    }
+  }
+
   const activeCount = subscribers.filter((s) => s.status === 'active').length
+
+  usePageTitle(
+    'Newsletter',
+    `${activeCount} inscrito${activeCount !== 1 ? 's' : ''} ativo${activeCount !== 1 ? 's' : ''}`
+  )
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Newsletter</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {activeCount} inscrito{activeCount !== 1 ? 's' : ''} ativo{activeCount !== 1 ? 's' : ''}
-          </p>
-        </div>
+      <div className="flex items-center justify-end mb-8">
         <Button onClick={handleSave} loading={saving}>
           Salvar configurações
         </Button>
@@ -115,9 +166,94 @@ export function NewsletterClient({ initialConfig }: Props) {
       )}
 
       <div className="space-y-6">
+        {/* Resend settings */}
+        <section className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-lg font-semibold text-neutral-900 mb-1">Configurações de Envio (Resend)</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Configure sua chave da API do Resend para habilitar o envio de e-mails.
+          </p>
+
+          {loadingSettings ? (
+            <div className="space-y-3 animate-pulse">
+              <div className="h-9 bg-gray-100 rounded" />
+              <div className="h-9 bg-gray-100 rounded" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Resend API Key
+                </label>
+                <input
+                  type="password"
+                  value={settings.resend_api_key}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, resend_api_key: e.target.value }))}
+                  placeholder="re_xxxxxxxxxxxx"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Obtenha sua chave em{' '}
+                  <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline">
+                    resend.com
+                  </a>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  E-mail remetente
+                </label>
+                <input
+                  type="email"
+                  value={settings.newsletter_from_email}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, newsletter_from_email: e.target.value }))}
+                  placeholder="newsletter@seudominio.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Deve ser um domínio verificado no Resend.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Enviar automaticamente ao publicar</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Dispara o e-mail para todos os inscritos ativos sempre que um post for publicado.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSettings((prev) => ({ ...prev, newsletter_auto_send: !prev.newsletter_auto_send }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    settings.newsletter_auto_send ? 'bg-brand-primary' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      settings.newsletter_auto_send ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  variant="secondary"
+                  onClick={handleSendTest}
+                  loading={sendingTest}
+                  disabled={!settings.resend_api_key || !settings.newsletter_from_email}
+                >
+                  Enviar e-mail de teste
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* Config section */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-neutral-900 mb-5">Configurações do Card</h2>
+          <h2 className="text-lg font-semibold text-neutral-900 mb-5">Configurações do Card de Inscrição</h2>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
