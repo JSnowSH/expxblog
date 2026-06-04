@@ -11,6 +11,7 @@ import { runPublisherAgent } from '@/lib/agents/publisher'
 import { getAgentConfig, upsertAgentConfig } from '@/lib/agent-configs'
 import { getAgentsExtra } from '@/lib/firecrawl'
 import { AgentContext, AgentId, PipelineEvent, PublisherTriggers } from '@/lib/agents/types'
+import { dispatchWebhookEvent } from '@/lib/webhooks'
 
 const LEARNING_MARKER = '\n\n--- ERROS RECORRENTES (aprender a evitar) ---'
 const MAX_LEARNING_ITEMS = 10
@@ -281,9 +282,11 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
         Object.assign(ctx, pubResult.data)
         send(makeEvent('agent_done', pubResult.message, 'publisher', { post_id: ctx.postId }))
 
+        dispatchWebhookEvent('pipeline_completed', { status: 'success', post_id: ctx.postId })
         send(makeEvent('pipeline_done', `Pipeline concluído! Artigo ID ${ctx.postId}`, undefined, { post_id: ctx.postId }))
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
+        dispatchWebhookEvent('pipeline_completed', { status: 'error' })
         send(makeEvent('pipeline_error', msg))
       } finally {
         controller.close()

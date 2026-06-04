@@ -133,6 +133,5 @@ export interface PipelineEvent {
 
 export interface PublisherTriggers {
   publishStatus: 'draft' | 'published'
-  webhookUrl?: string
   sendNewsletter?: boolean
 }

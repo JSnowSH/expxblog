@@ -34,6 +34,7 @@ export const posts = pgTable(
       .notNull()
       .default('draft'),
     published_at: timestamp('published_at'),
+    newsletter_sent_at: timestamp('newsletter_sent_at'),
     created_at: timestamp('created_at').notNull().default(sql`now()`),
     updated_at: timestamp('updated_at').notNull().default(sql`now()`),
   },
@@ -153,6 +154,7 @@ export const newsletterSubscribers = pgTable(
       .default('active'),
     subscribed_at: timestamp('subscribed_at').notNull().default(sql`now()`),
     unsubscribed_at: timestamp('unsubscribed_at'),
+    unsubscribe_token: text('unsubscribe_token').unique(),
   },
   (t) => ({
     emailIdx: index('newsletter_email_idx').on(t.email),
@@ -348,3 +350,22 @@ export type NewSourceCrawler = typeof sourceCrawlers.$inferInsert
 export type SourceCrawlerItem = typeof sourceCrawlerItems.$inferSelect
 export type AiRequestLog = typeof aiRequestLogs.$inferSelect
 export type NewAiRequestLog = typeof aiRequestLogs.$inferInsert
+
+export const webhooks = pgTable(
+  'webhooks',
+  {
+    id: serial('id').primaryKey(),
+    url: text('url').notNull(),
+    secret: text('secret'),
+    events: text('events').array().notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    created_at: timestamp('created_at').notNull().default(sql`now()`),
+    updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+  },
+  (t) => ({
+    enabledIdx: index('webhooks_enabled_idx').on(t.enabled),
+  })
+)
+
+export type Webhook = typeof webhooks.$inferSelect
+export type NewWebhook = typeof webhooks.$inferInsert

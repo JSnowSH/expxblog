@@ -8,6 +8,8 @@ import { eq, count, sql } from 'drizzle-orm'
 export const dynamic = 'force-dynamic'
 import { generateSlug } from '@/lib/slug'
 import { revalidatePublicPosts } from '@/lib/revalidate'
+import { dispatchWebhookEvent } from '@/lib/webhooks'
+import { triggerNewsletterSend } from '@/lib/newsletter-trigger'
 
 const sanitizeOptions: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h2', 'h3', 'img']),
@@ -101,7 +103,13 @@ export async function POST(request: Request) {
       )
     }
 
-    if (post.status === 'published') revalidatePublicPosts(post.slug)
+    if (post.status === 'published') {
+      revalidatePublicPosts(post.slug)
+      dispatchWebhookEvent('post_published', { post_id: post.id, title: post.title, slug: post.slug, status: post.status })
+      triggerNewsletterSend(post.id)
+    } else {
+      dispatchWebhookEvent('post_draft_created', { post_id: post.id, title: post.title, slug: post.slug, status: post.status })
+    }
 
     return NextResponse.json({ post }, { status: 201 })
   } catch (err: unknown) {

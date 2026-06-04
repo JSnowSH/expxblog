@@ -211,12 +211,50 @@ CREATE INDEX "posts_published_at_idx" ON "posts" USING btree ("published_at");--
 CREATE INDEX "rss_processed_items_feed_guid_idx" ON "rss_processed_items" USING btree ("feed_id","item_guid");--> statement-breakpoint
 CREATE UNIQUE INDEX "source_crawler_items_crawler_item_uniq" ON "source_crawler_items" USING btree ("crawler_id","item_key");`,
 
-  '0001_rapid_zzzax': `ALTER TABLE "ai_request_logs" ADD COLUMN "cost_brl" real;--> statement-breakpoint
-ALTER TABLE "ai_request_logs" ADD COLUMN "usd_brl_rate" real;`,
+  '0001_rapid_zzzax': `CREATE TABLE IF NOT EXISTS "ai_request_logs" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"feature" text NOT NULL,
+	"model" text NOT NULL,
+	"prompt_tokens" integer DEFAULT 0 NOT NULL,
+	"completion_tokens" integer DEFAULT 0 NOT NULL,
+	"total_tokens" integer DEFAULT 0 NOT NULL,
+	"cost_usd" real DEFAULT 0 NOT NULL,
+	"status" text DEFAULT 'success' NOT NULL,
+	"error" text,
+	"duration_ms" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_request_logs_created_at_idx" ON "ai_request_logs" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_request_logs_feature_idx" ON "ai_request_logs" USING btree ("feature");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_request_logs_model_idx" ON "ai_request_logs" USING btree ("model");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "ai_request_logs_status_idx" ON "ai_request_logs" USING btree ("status");--> statement-breakpoint
+ALTER TABLE "ai_request_logs" ADD COLUMN IF NOT EXISTS "cost_brl" real;--> statement-breakpoint
+ALTER TABLE "ai_request_logs" ADD COLUMN IF NOT EXISTS "usd_brl_rate" real;`,
+
+  '0002_messy_omega_red': `CREATE TABLE "webhooks" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"url" text NOT NULL,
+	"secret" text,
+	"events" text[] NOT NULL,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX "webhooks_enabled_idx" ON "webhooks" USING btree ("enabled");--> statement-breakpoint
+CREATE INDEX "posts_published_slug_idx" ON "posts" USING btree ("slug") WHERE "posts"."status" = 'published';--> statement-breakpoint
+CREATE INDEX "posts_published_published_at_idx" ON "posts" USING btree ("published_at" DESC) WHERE "posts"."status" = 'published';`,
+
+  '0003_careless_fixer': `ALTER TABLE "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "unsubscribe_token" text;--> statement-breakpoint
+ALTER TABLE "posts" ADD COLUMN IF NOT EXISTS "newsletter_sent_at" timestamp;--> statement-breakpoint
+ALTER TABLE "newsletter_subscribers" ADD CONSTRAINT "newsletter_subscribers_unsubscribe_token_unique" UNIQUE("unsubscribe_token");`,
 }
 
 // Ordem de aplicação (mesma do _journal.json)
 export const MIGRATION_ORDER = [
   '0000_abandoned_frank_castle',
   '0001_rapid_zzzax',
+  '0002_messy_omega_red',
+  '0003_careless_fixer',
 ]

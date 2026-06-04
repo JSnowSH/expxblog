@@ -15,9 +15,11 @@ import {
 } from '@/components/admin/icons/ExpxIcons'
 
 import { useState, useEffect, type ReactNode } from 'react'
+import { usePageTitle } from '@/components/admin/AdminPageTitleContext'
 import { Button } from '@/components/ui/Button'
 import { ModelCombobox } from '@/components/ui/ModelCombobox'
 import type { CompanyInfo } from '@/lib/settings'
+import WebhooksSection from '@/components/admin/WebhooksSection'
 
 interface AISettings {
   api_key: string
@@ -46,7 +48,7 @@ interface Props {
 }
 
 type CompanyKey = keyof CompanyInfo
-type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'api' | 'telegram' | 'vercel' | 'banco'
+type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'api' | 'telegram' | 'vercel' | 'banco' | 'webhooks'
 
 interface RemoteModel {
   id: string
@@ -62,6 +64,7 @@ const FEATURE_LABELS: Record<string, string> = {
   theme_suggestion: 'Sugestão de Temas',
   category_matching: 'Correspondência de Categorias',
   url_extraction: 'Extração de URLs (Crawler)',
+  briefing_extraction: 'Extração de dados do briefing',
 }
 
 const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
@@ -76,6 +79,11 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
   { id: 'telegram', label: 'Telegram Bot', icon: <IconTelegram /> },
   { id: 'vercel', label: 'Plano Vercel', icon: <IconVercel /> },
   { id: 'banco', label: 'Banco de Dados', icon: <IconBancoDados /> },
+  { id: 'webhooks', label: 'Webhooks', icon: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" />
+    </svg>
+  ) },
 ]
 
 const SECTIONS: Record<string, { fields: { key: CompanyKey; label: string; type?: string; placeholder?: string; multiline?: boolean }[] }> = {
@@ -1272,6 +1280,18 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
           </section>
         )
 
+      case 'webhooks':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Webhooks</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Configure endpoints externos que recebem notificações automáticas quando eventos ocorrem no sistema.
+              Cada endpoint pode ouvir um ou mais eventos e opcionalmente receber os payloads assinados via HMAC-SHA256.
+            </p>
+            <WebhooksSection />
+          </section>
+        )
+
       case 'api':
 
         return (
@@ -1308,10 +1328,11 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
     }
   }
 
+  usePageTitle('Configurações')
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-neutral-900">Configurações</h1>
+      <div className="flex items-center justify-end mb-8">
         <Button onClick={handleSave} loading={saving}>
           Salvar alterações
         </Button>

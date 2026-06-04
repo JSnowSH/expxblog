@@ -95,27 +95,78 @@ async function getAppliedMigrations(): Promise<string[]> {
   }
 }
 
-async function siteSettingsExists(): Promise<boolean> {
+// Tabelas que o schema completo deve conter. Derivado de drizzle/schema.ts.
+const EXPECTED_TABLES = [
+  'users',
+  'posts',
+  'categories',
+  'tags',
+  'post_categories',
+  'post_tags',
+  'site_settings',
+  'api_tokens',
+  'article_themes',
+  'page_views',
+  'newsletter_subscribers',
+  'automation_config',
+  'agent_configs',
+  'rss_feeds',
+  'rss_processed_items',
+  'automation_logs',
+  'source_crawlers',
+  'source_crawler_items',
+  'ai_request_logs',
+  'webhooks',
+] as const
+
+/** Retorna quais tabelas esperadas ESTÃO FALTANDO no banco. */
+async function getMissingTables(): Promise<string[]> {
   try {
-    await db.execute(sql`SELECT 1 FROM site_settings LIMIT 1`)
-    return true
+    const rows = await db.execute(
+      sql`SELECT table_name FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+            AND table_name = ANY(${EXPECTED_TABLES as unknown as string[]})`
+    )
+    const existing = new Set(
+      (rows as unknown as { table_name: string }[]).map((r) => r.table_name)
+    )
+    return EXPECTED_TABLES.filter((t) => !existing.has(t))
   } catch {
-    return false
+    return []
   }
 }
 
-export async function getDbPendingMigrations(): Promise<string[]> {
-  const applied = await getAppliedMigrations()
-  const pending = MIGRATION_ORDER.filter((tag) => !applied.includes(tag))
+/**
+ * Flag de processo: uma vez que o schema esteja completo (sem tabelas faltando e
+ * sem migrations pendentes), curto-circuita as próximas chamadas retornando []
+ * imediatamente. Só o estado "completo" é cacheado — se houver pendências, a
+ * flag permanece false e cada chamada consulta o banco normalmente.
+ */
+let schemaComplete = false
 
-  // Se drizzle_migrations não existe mas site_settings existe, o banco foi configurado
-  // pelo setup (não pelo migrator). Não há migrations a aplicar.
-  if (pending.length === MIGRATION_ORDER.length && applied.length === 0) {
-    const hasSchema = await siteSettingsExists()
-    if (hasSchema) return []
+export async function getDbPendingMigrations(): Promise<string[]> {
+  // Curto-circuito: banco confirmado completo neste processo, sem necessidade de query.
+  if (schemaComplete) return []
+
+  const applied = await getAppliedMigrations()
+  const pendingByVersion = MIGRATION_ORDER.filter((tag) => !applied.includes(tag))
+
+  // Verificação de drift real: mesmo que drizzle_migrations registre tudo aplicado,
+  // se uma tabela esperada não existir no banco retornamos as migrations pendentes.
+  const missing = await getMissingTables()
+  if (missing.length > 0) {
+    // Retorna TODAS as migrations em ordem para que o applyMigration idempotente
+    // recrie apenas o que está faltando.
+    return MIGRATION_ORDER
   }
 
-  return pending
+  if (pendingByVersion.length === 0) {
+    // Schema completo — grava a flag para evitar queries desnecessárias nos renders seguintes.
+    schemaComplete = true
+  }
+
+  return pendingByVersion
 }
 
 export async function ensureMigrationsTable(): Promise<void> {
@@ -130,6 +181,26 @@ export async function ensureMigrationsTable(): Promise<void> {
   )
 }
 
+/**
+ * Torna um statement DDL idempotente:
+ * - CREATE TABLE → CREATE TABLE IF NOT EXISTS
+ * - CREATE INDEX → CREATE INDEX IF NOT EXISTS
+ * - CREATE UNIQUE INDEX → CREATE UNIQUE INDEX IF NOT EXISTS
+ * - ADD COLUMN → ADD COLUMN IF NOT EXISTS
+ * - ADD CONSTRAINT … ALTER TABLE statements são executados individualmente
+ *   e erros de objeto duplicado (42710 / 42P07) são ignorados.
+ */
+function makeIdempotent(stmt: string): string {
+  return stmt
+    .replace(/CREATE TABLE(?!\s+IF NOT EXISTS)/gi, 'CREATE TABLE IF NOT EXISTS')
+    .replace(/CREATE UNIQUE INDEX(?!\s+IF NOT EXISTS)/gi, 'CREATE UNIQUE INDEX IF NOT EXISTS')
+    .replace(/CREATE INDEX(?!\s+IF NOT EXISTS)/gi, 'CREATE INDEX IF NOT EXISTS')
+    .replace(/ADD COLUMN(?!\s+IF NOT EXISTS)/gi, 'ADD COLUMN IF NOT EXISTS')
+}
+
+/** Códigos PostgreSQL que indicam que o objeto já existe — ignorar com segurança. */
+const ALREADY_EXISTS_CODES = new Set(['42P07', '42710', '42701'])
+
 export async function applyMigration(tag: string): Promise<void> {
   const raw = EMBEDDED_MIGRATIONS[tag]
   if (!raw) {
@@ -141,16 +212,24 @@ export async function applyMigration(tag: string): Promise<void> {
     .map((s) => s.trim())
     .filter(Boolean)
 
-  await withMigrationClient((client) =>
-    client.begin(async (tx) => {
-      for (const statement of statements) {
-        await tx.unsafe(statement)
+  await withMigrationClient(async (client) => {
+    for (const statement of statements) {
+      const idempotent = makeIdempotent(statement)
+      try {
+        await client.unsafe(idempotent)
+      } catch (err) {
+        const code = (err as { code?: string })?.code
+        if (code && ALREADY_EXISTS_CODES.has(code)) {
+          // Objeto já existe — seguro ignorar
+          continue
+        }
+        throw err
       }
-      await tx`
-        INSERT INTO drizzle_migrations (migration_name)
-        VALUES (${tag})
-        ON CONFLICT (migration_name) DO NOTHING
-      `
-    })
-  )
+    }
+    await client`
+      INSERT INTO drizzle_migrations (migration_name)
+      VALUES (${tag})
+      ON CONFLICT (migration_name) DO NOTHING
+    `
+  })
 }

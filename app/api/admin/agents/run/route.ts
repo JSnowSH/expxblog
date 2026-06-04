@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
   const body = await request.json() as {
     themeIds?: number[]
     publishStatus?: 'draft' | 'published'
-    webhookUrl?: string
     sendNewsletter?: boolean
     headline?: string
     initialLinks?: string[]
@@ -20,7 +19,6 @@ export async function POST(request: NextRequest) {
 
   const triggers: PublisherTriggers = {
     publishStatus: body.publishStatus ?? 'published',
-    webhookUrl: body.webhookUrl,
     sendNewsletter: body.sendNewsletter ?? false,
   }
 
