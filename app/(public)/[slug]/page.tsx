@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Badge } from '@/components/ui/Badge'
 import { getAppUrl } from '@/lib/app-url'
 import { db } from '@/drizzle/db'
@@ -70,11 +71,13 @@ export default async function PostPage({ params }: { params: { slug: string } })
       </Link>
 
       {post.cover_image && (
-        <div className="aspect-video rounded-xl overflow-hidden mb-8">
-          <img
+        <div className="relative aspect-video rounded-xl overflow-hidden mb-8">
+          <Image
             src={post.cover_image}
             alt={post.title}
-            className="w-full h-full object-cover"
+            fill
+            unoptimized
+            className="object-cover"
           />
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Image from 'next/image'
 
 interface ImageUploadProps {
   value: string
@@ -77,13 +78,15 @@ export function ImageUpload({ value, onChange, variant = 'image', aiContext }: I
       />
 
       {value ? (
-        <div className="relative group">
-          <img
+        <div className={`relative group ${variant === 'logo' ? 'h-24' : 'aspect-video'} w-full`}>
+          <Image
             src={value}
             alt="Preview"
+            fill
+            unoptimized
             className={variant === 'logo'
-              ? 'rounded-lg w-full h-24 object-contain bg-gray-100'
-              : 'rounded-lg w-full aspect-video object-cover'
+              ? 'rounded-lg object-contain bg-gray-100'
+              : 'rounded-lg object-cover'
             }
           />
           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
