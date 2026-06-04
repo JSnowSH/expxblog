@@ -1,6 +1,19 @@
 'use client'
 
-import { useState, useEffect, KeyboardEvent } from 'react'
+import {
+  IconListaArtigos,
+  IconTemas,
+  IconBriefing,
+  IconAutomacao,
+  IconRSS,
+  IconFontes,
+  IconAgentes,
+  IconCategorias,
+  IconTags,
+  IconConfiguracaoArtigos,
+} from '@/components/admin/icons/ExpxIcons'
+
+import { useState, useEffect, KeyboardEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -23,17 +36,17 @@ function formatDateTime(d: Date | string | null) {
   }).format(new Date(d))
 }
 
-const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
-  { id: 'lista', label: 'Lista de Artigos', icon: '📝' },
-  { id: 'temas', label: 'Temas', icon: '💡' },
-  { id: 'briefing', label: 'Briefing', icon: '📋' },
-  { id: 'automacao', label: 'Automação', icon: '🤖' },
-  { id: 'rss', label: 'RSS', icon: '📡' },
-  { id: 'fontes', label: 'Fontes de Conteúdo', icon: '🔍' },
-  { id: 'agentes', label: 'Agentes de IA', icon: '🧠' },
-  { id: 'categorias', label: 'Categorias', icon: '🗂️' },
-  { id: 'tags', label: 'Tags', icon: '🏷️' },
-  { id: 'configuracao', label: 'Configurações', icon: '⚙️' },
+const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
+  { id: 'lista', label: 'Lista de Artigos', icon: <IconListaArtigos /> },
+  { id: 'temas', label: 'Temas', icon: <IconTemas /> },
+  { id: 'briefing', label: 'Briefing', icon: <IconBriefing /> },
+  { id: 'automacao', label: 'Automação', icon: <IconAutomacao /> },
+  { id: 'rss', label: 'RSS', icon: <IconRSS /> },
+  { id: 'fontes', label: 'Fontes de Conteúdo', icon: <IconFontes /> },
+  { id: 'agentes', label: 'Agentes de IA', icon: <IconAgentes /> },
+  { id: 'categorias', label: 'Categorias', icon: <IconCategorias /> },
+  { id: 'tags', label: 'Tags', icon: <IconTags /> },
+  { id: 'configuracao', label: 'Configurações', icon: <IconConfiguracaoArtigos /> },
 ]
 
 export default function ArtigosClient() {

@@ -1,6 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import {
+  IconBlog,
+  IconEmpresa,
+  IconRedes,
+  IconIA,
+  IconAILogs,
+  IconFirecrawl,
+  IconImagem,
+  IconChaves,
+  IconTelegram,
+  IconVercel,
+  IconBancoDados,
+} from '@/components/admin/icons/ExpxIcons'
+
+import { useState, useEffect, type ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ModelCombobox } from '@/components/ui/ModelCombobox'
 import type { CompanyInfo } from '@/lib/settings'
@@ -50,18 +64,18 @@ const FEATURE_LABELS: Record<string, string> = {
   url_extraction: 'Extração de URLs (Crawler)',
 }
 
-const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
-  { id: 'blog', label: 'Blog', icon: '📝' },
-  { id: 'empresa', label: 'Dados da Empresa', icon: '🏢' },
-  { id: 'redes', label: 'Redes Sociais', icon: '🌐' },
-  { id: 'ia', label: 'IA (OpenRouter)', icon: '🤖' },
-  { id: 'ai-logs', label: 'Logs de IA', icon: '📊' },
-  { id: 'firecrawl', label: 'Firecrawl', icon: '🔥' },
-  { id: 'pexels', label: 'Pexels', icon: '📷' },
-  { id: 'api', label: 'API', icon: '🔑' },
-  { id: 'telegram', label: 'Telegram Bot', icon: '✈️' },
-  { id: 'vercel', label: 'Plano Vercel', icon: '▲' },
-  { id: 'banco', label: 'Banco de Dados', icon: '🗄️' },
+const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
+  { id: 'blog', label: 'Blog', icon: <IconBlog /> },
+  { id: 'empresa', label: 'Dados da Empresa', icon: <IconEmpresa /> },
+  { id: 'redes', label: 'Redes Sociais', icon: <IconRedes /> },
+  { id: 'ia', label: 'IA (OpenRouter)', icon: <IconIA /> },
+  { id: 'ai-logs', label: 'Logs de IA', icon: <IconAILogs /> },
+  { id: 'firecrawl', label: 'Firecrawl', icon: <IconFirecrawl /> },
+  { id: 'pexels', label: 'Pexels', icon: <IconImagem /> },
+  { id: 'api', label: 'API', icon: <IconChaves /> },
+  { id: 'telegram', label: 'Telegram Bot', icon: <IconTelegram /> },
+  { id: 'vercel', label: 'Plano Vercel', icon: <IconVercel /> },
+  { id: 'banco', label: 'Banco de Dados', icon: <IconBancoDados /> },
 ]
 
 const SECTIONS: Record<string, { fields: { key: CompanyKey; label: string; type?: string; placeholder?: string; multiline?: boolean }[] }> = {
