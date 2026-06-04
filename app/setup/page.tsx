@@ -70,6 +70,7 @@ export default function SetupPage() {
   const [error, setError] = useState('')
   const [deploymentId, setDeploymentId] = useState('')
   const [deployUrl, setDeployUrl] = useState('')
+  const [warnings, setWarnings] = useState<string[]>([])
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [supabaseProjectId, setSupabaseProjectId] = useState('')
@@ -225,6 +226,9 @@ export default function SetupPage() {
         return
       }
       setDeploymentId(data.deploymentId)
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        setWarnings(data.warnings)
+      }
       pollDeployStatus(data.deploymentId)
     } catch {
       setError('Erro de conexão')
@@ -597,6 +601,16 @@ export default function SetupPage() {
                   <span className="text-sm font-mono text-neutral-900">{state.adminEmail}</span>
                 </div>
               </div>
+              {warnings.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-left space-y-1.5">
+                  <p className="text-[13px] font-medium text-amber-800">Atenção</p>
+                  <ul className="space-y-1">
+                    {warnings.map((w, i) => (
+                      <li key={i} className="text-[13px] text-amber-700">• {w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {deployUrl && (
                 <p className="text-xs text-gray-400">
                   Deploy em:{' '}

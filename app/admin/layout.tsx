@@ -8,7 +8,7 @@ import { AdminTopBar } from '@/components/admin/AdminTopBar'
 import { AdminPageTitleProvider } from '@/components/admin/AdminPageTitleContext'
 import { ChatPanelProvider } from '@/components/admin/ChatPanelContext'
 import { ChatPanel } from '@/components/admin/ChatPanel'
-import { getDbPendingMigrations } from '@/lib/db-migrations'
+import { getDbPendingMigrations, getDbCronStatus } from '@/lib/db-migrations'
 import { MIGRATION_ORDER } from '@/lib/migrations-embedded'
 import { DbUpdateModal } from '@/components/blog/DbUpdateModal'
 import OnboardingWizard from '@/components/admin/OnboardingWizard'
@@ -83,10 +83,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     pendingMigrations = MIGRATION_ORDER
   }
 
+  let cronsMissing: string[] = []
+  try {
+    cronsMissing = (await getDbCronStatus()).missing
+  } catch {
+    // Falha na checagem de cron não bloqueia o admin
+    cronsMissing = []
+  }
+
   return (
     <ChatPanelProvider>
     <AdminThemeProvider>
-      <DbUpdateModal pending={pendingMigrations} />
+      <DbUpdateModal pending={pendingMigrations} cronsMissing={cronsMissing} />
       <OnboardingWizard />
       <ChatPanel />
       <div className="min-h-screen flex admin-shell">

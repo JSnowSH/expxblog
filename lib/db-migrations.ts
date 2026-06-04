@@ -223,6 +223,55 @@ export async function ensureMigrationsTable(): Promise<void> {
 }
 
 /**
+ * Drift de cron — verificação independente do schema.
+ *
+ * As crons são estrutura versionada: quando um job esperado não existe no banco,
+ * o sistema oferece recriá-lo (igual a tabelas/colunas). Esta checagem NÃO usa a
+ * flag `schemaComplete` de propósito — mesmo com o schema completo, uma cron pode
+ * ter sumido (ou nunca ter sido criada num banco que já tinha as tabelas), e isso
+ * precisa continuar sendo detectado a cada verificação.
+ */
+export type CronDriftStatus = {
+  /** Jobs esperados (always + condicionais ativos) que estão faltando. */
+  missing: string[]
+  /** false quando pg_cron não está habilitado no banco. */
+  cronAvailable: boolean
+}
+
+/**
+ * Cache de processo: o drift de cron é evento raro, mas getDbCronStatus roda no
+ * SSR do layout admin a cada pageview. Cacheamos o último resultado por um TTL
+ * curto para não abrir conexão + rodar queries em toda navegação. O TTL garante
+ * que uma cron removida manualmente ainda seja detectada em poucos minutos.
+ */
+let cronStatusCache: { value: CronDriftStatus; at: number } | null = null
+const CRON_STATUS_TTL_MS = 60_000
+
+/** Invalida o cache de status de cron — chamado após reconciliar (db-migrate). */
+export function invalidateCronStatusCache(): void {
+  cronStatusCache = null
+}
+
+export async function getDbCronStatus(): Promise<CronDriftStatus> {
+  if (cronStatusCache && Date.now() - cronStatusCache.at < CRON_STATUS_TTL_MS) {
+    return cronStatusCache.value
+  }
+  try {
+    const { getMissingCrons } = await import('./supabase-cron')
+    const { missing, cronAvailable } = await getMissingCrons()
+    const value = { missing, cronAvailable }
+    cronStatusCache = { value, at: Date.now() }
+    return value
+  } catch (err) {
+    // Falha ao consultar — não bloqueia o admin e não exibe modal indevido (um blip
+    // transitório não deve disparar o modal em todo render). Logamos para que a falha
+    // não fique invisível, em vez de silenciá-la completamente.
+    console.error('[getDbCronStatus]', err instanceof Error ? err.message : String(err))
+    return { missing: [], cronAvailable: true }
+  }
+}
+
+/**
  * Torna um statement DDL idempotente:
  * - CREATE TABLE → CREATE TABLE IF NOT EXISTS
  * - CREATE INDEX → CREATE INDEX IF NOT EXISTS

@@ -4,10 +4,13 @@ import { useState, useRef, useEffect } from 'react'
 
 interface Props {
   pending: string[]
+  cronsMissing?: string[]
 }
 
 type MigrateEvent =
   | { type: 'migration'; name: string; status: 'applying' | 'done' | 'skipped' }
+  | { type: 'cron'; status: 'applying' | 'done'; detail?: string }
+  | { type: 'cron-warning'; message: string }
   | { type: 'complete'; message: string }
   | { type: 'error'; name: string; message: string }
 
@@ -20,10 +23,11 @@ type ModalState = 'idle' | 'running' | 'done' | 'error'
 
 const NO_SCHEMA_MARKER = '__banco_sem_schema__'
 
-export function DbUpdateModal({ pending }: Props) {
+export function DbUpdateModal({ pending, cronsMissing = [] }: Props) {
   const [state, setState] = useState<ModalState>('idle')
   const [logs, setLogs] = useState<LogLine[]>([])
   const [dismissed, setDismissed] = useState(false)
+  const [doneMsg, setDoneMsg] = useState('Atualização concluída com sucesso.')
   const logRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -32,7 +36,10 @@ export function DbUpdateModal({ pending }: Props) {
     }
   }, [logs])
 
-  if (pending.length === 0 || dismissed) return null
+  const hasMigrations = pending.length > 0
+  const hasCrons = cronsMissing.length > 0
+
+  if ((!hasMigrations && !hasCrons) || dismissed) return null
 
   // Caso especial: banco vazio mas arquivos .sql não acessíveis no bundle
   const noSchema = pending.includes(NO_SCHEMA_MARKER)
@@ -83,11 +90,29 @@ export function DbUpdateModal({ pending }: Props) {
                   { text: `— ${event.name}.sql (já aplicado)`, color: 'white' },
                 ])
               }
+            } else if (event.type === 'cron') {
+              if (event.status === 'applying') {
+                setLogs((prev) => [
+                  ...prev,
+                  { text: '▸ Reconciliando crons (pg_cron)...', color: 'green' },
+                ])
+              } else {
+                setLogs((prev) => [
+                  ...prev,
+                  { text: `✓ Crons: ${event.detail ?? 'ok'}`, color: 'white' },
+                ])
+              }
+            } else if (event.type === 'cron-warning') {
+              setLogs((prev) => [
+                ...prev,
+                { text: `⚠ ${event.message}`, color: 'red' },
+              ])
             } else if (event.type === 'complete') {
               setLogs((prev) => [
                 ...prev,
                 { text: `✓ ${event.message}`, color: 'white' },
               ])
+              setDoneMsg(event.message)
               setState('done')
             } else if (event.type === 'error') {
               setLogs((prev) => [
@@ -131,11 +156,13 @@ export function DbUpdateModal({ pending }: Props) {
               {state === 'idle'
                 ? noSchema
                   ? 'O banco de dados não tem schema criado.'
-                  : 'O banco de dados está desatualizado.'
+                  : hasMigrations
+                  ? 'O banco de dados está desatualizado.'
+                  : 'Há crons (tarefas agendadas) faltando no banco.'
                 : state === 'running'
-                ? 'Aplicando migrations...'
+                ? 'Aplicando atualizações...'
                 : state === 'done'
-                ? 'Banco atualizado com sucesso.'
+                ? doneMsg
                 : 'Ocorreu um erro durante a atualização.'}
             </p>
           </div>
@@ -166,17 +193,36 @@ export function DbUpdateModal({ pending }: Props) {
 
           {state === 'idle' && !noSchema && (
             <>
-              <p className="text-[13px] text-gray-600 mb-3">
-                As seguintes migrations serão aplicadas:
-              </p>
-              <ul className="space-y-1 mb-5">
-                {pending.map((name) => (
-                  <li key={name} className="flex items-center gap-2 text-[13px] font-mono text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-secondary shrink-0" />
-                    {name}.sql
-                  </li>
-                ))}
-              </ul>
+              {hasMigrations && (
+                <>
+                  <p className="text-[13px] text-gray-600 mb-3">
+                    As seguintes migrations serão aplicadas:
+                  </p>
+                  <ul className="space-y-1 mb-5">
+                    {pending.map((name) => (
+                      <li key={name} className="flex items-center gap-2 text-[13px] font-mono text-gray-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-secondary shrink-0" />
+                        {name}.sql
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+              {hasCrons && (
+                <>
+                  <p className="text-[13px] text-gray-600 mb-3">
+                    {hasMigrations ? 'Além disso, as crons abaixo serão criadas:' : 'As seguintes crons serão criadas:'}
+                  </p>
+                  <ul className="space-y-1 mb-5">
+                    {cronsMissing.map((name) => (
+                      <li key={name} className="flex items-center gap-2 text-[13px] font-mono text-gray-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0" />
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </>
           )}
 
