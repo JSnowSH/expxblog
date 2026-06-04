@@ -109,6 +109,14 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
   const [dbMigrateState, setDbMigrateState] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
   const [dbLogs, setDbLogs] = useState<{ text: string; color: 'green' | 'white' | 'red' }[]>([])
 
+  // DB connection state
+  const [dbUrlInput, setDbUrlInput] = useState('')
+  const [dbUrlMasked, setDbUrlMasked] = useState<string | null>(null)
+  const [dbUrlSource, setDbUrlSource] = useState<'env' | 'custom' | null>(null)
+  const [dbTestState, setDbTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
+  const [dbTestMsg, setDbTestMsg] = useState('')
+  const [dbSaveState, setDbSaveState] = useState<'idle' | 'saving'>('idle')
+
   // AI Logs state
   type AiLogEntry = {
     id: number
@@ -178,6 +186,17 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
         .then((d) => { if (d) setVercelMaxDuration(d.value) })
         .catch(() => {})
     }
+    if (activeSection === 'banco') {
+      fetch('/api/admin/settings/database-url')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { masked: string; source: 'env' | 'custom' } | null) => {
+          if (d) {
+            setDbUrlMasked(d.masked)
+            setDbUrlSource(d.source)
+          }
+        })
+        .catch(() => {})
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection])
 
@@ -239,6 +258,103 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
 
   function handlePexelsKeyChange(value: string) {
     setPexels((prev) => ({ ...prev, api_key: value }))
+  }
+
+  async function handleDbTestConnection() {
+    if (!dbUrlInput.trim()) return
+    setDbTestState('testing')
+    setDbTestMsg('')
+    try {
+      const res = await fetch('/api/admin/db-test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: dbUrlInput.trim() }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setDbTestState('ok')
+        setDbTestMsg(`Conexão OK — ${data.latency_ms}ms`)
+      } else {
+        setDbTestState('error')
+        setDbTestMsg(data.error ?? 'Falha na conexão')
+      }
+    } catch (err) {
+      setDbTestState('error')
+      setDbTestMsg(err instanceof Error ? err.message : 'Erro ao testar conexão')
+    }
+  }
+
+  async function handleDbSaveAndMigrate() {
+    if (!dbUrlInput.trim() || dbTestState !== 'ok') return
+    setDbSaveState('saving')
+    try {
+      const saveRes = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database: { url: dbUrlInput.trim() } }),
+      })
+      if (!saveRes.ok) {
+        const d = await saveRes.json()
+        throw new Error(d.error ?? 'Falha ao salvar URL do banco')
+      }
+      // Refresh masked URL display
+      const infoRes = await fetch('/api/admin/settings/database-url')
+      if (infoRes.ok) {
+        const info = await infoRes.json()
+        setDbUrlMasked(info.masked)
+        setDbUrlSource(info.source)
+      }
+      setDbUrlInput('')
+      setDbTestState('idle')
+      setDbTestMsg('')
+      // Now run migrations via SSE
+      setDbMigrateState('running')
+      setDbLogs([{ text: 'Conectando ao novo banco e aplicando migrations...', color: 'white' }])
+      type MigrateEvent =
+        | { type: 'migration'; name: string; status: 'applying' | 'done' | 'skipped' }
+        | { type: 'complete'; message: string }
+        | { type: 'error'; name: string; message: string }
+      const migrateRes = await fetch('/api/admin/db-migrate', { method: 'POST' })
+      if (!migrateRes.body) {
+        setDbMigrateState('error')
+        setDbLogs((p) => [...p, { text: 'Erro: resposta sem corpo.', color: 'red' }])
+        return
+      }
+      const reader = migrateRes.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+        for (const part of parts) {
+          const line = part.replace(/^data: /, '').trim()
+          if (!line) continue
+          try {
+            const event: MigrateEvent = JSON.parse(line)
+            if (event.type === 'migration') {
+              if (event.status === 'applying') setDbLogs((p) => [...p, { text: `▸ Aplicando ${event.name}.sql...`, color: 'green' }])
+              else if (event.status === 'done') setDbLogs((p) => [...p, { text: `✓ ${event.name}.sql`, color: 'white' }])
+            } else if (event.type === 'complete') {
+              setDbLogs((p) => [...p, { text: `✓ ${event.message}`, color: 'white' }])
+              setDbMigrateState('done')
+            } else if (event.type === 'error') {
+              setDbLogs((p) => [...p, { text: `✗ ${event.message}`, color: 'red' }])
+              setDbMigrateState('error')
+            }
+          } catch { /* ignora parse error */ }
+        }
+      }
+      setToast({ type: 'success', msg: 'URL salva e migrations aplicadas com sucesso.' })
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar banco' })
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setDbSaveState('idle')
+    }
   }
 
   async function handleRegisterWebhook() {
@@ -866,94 +982,184 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
         )
       case 'banco':
         return (
-          <section className="bg-white rounded-xl border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Banco de Dados</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              Aplique migrations pendentes para atualizar o schema do banco de dados.
-            </p>
-            {dbMigrateState === 'idle' && (
-              <button
-                onClick={async () => {
-                  setDbMigrateState('running')
-                  setDbLogs([])
-                  type MigrateEvent =
-                    | { type: 'migration'; name: string; status: 'applying' | 'done' | 'skipped' }
-                    | { type: 'complete'; message: string }
-                    | { type: 'error'; name: string; message: string }
-                  try {
-                    const res = await fetch('/api/admin/db-migrate', { method: 'POST' })
-                    if (!res.body) { setDbMigrateState('error'); setDbLogs([{ text: 'Erro: resposta sem corpo.', color: 'red' }]); return }
-                    const reader = res.body.getReader()
-                    const decoder = new TextDecoder()
-                    let buffer = ''
-                    while (true) {
-                      const { done, value } = await reader.read()
-                      if (done) break
-                      buffer += decoder.decode(value, { stream: true })
-                      const parts = buffer.split('\n\n')
-                      buffer = parts.pop() ?? ''
-                      for (const part of parts) {
-                        const line = part.replace(/^data: /, '').trim()
-                        if (!line) continue
-                        try {
-                          const event: MigrateEvent = JSON.parse(line)
-                          if (event.type === 'migration') {
-                            if (event.status === 'applying') setDbLogs((p) => [...p, { text: `▸ Aplicando ${event.name}.sql...`, color: 'green' }])
-                            else if (event.status === 'done') setDbLogs((p) => [...p, { text: `✓ ${event.name}.sql`, color: 'white' }])
-                          } else if (event.type === 'complete') {
-                            setDbLogs((p) => [...p, { text: `✓ ${event.message}`, color: 'white' }])
-                            setDbMigrateState('done')
-                          } else if (event.type === 'error') {
-                            setDbLogs((p) => [...p, { text: `✗ ${event.message}`, color: 'red' }])
-                            setDbMigrateState('error')
-                          }
-                        } catch {}
-                      }
-                    }
-                  } catch (err) {
-                    setDbLogs((p) => [...p, { text: `✗ ${err instanceof Error ? err.message : String(err)}`, color: 'red' }])
-                    setDbMigrateState('error')
+          <section className="bg-white rounded-xl border border-gray-200 p-6 space-y-8">
+            <div>
+              <h2 className="text-lg font-semibold text-neutral-900 mb-1">Banco de Dados</h2>
+              <p className="text-sm text-gray-500">
+                Configure a conexão com o banco de dados e aplique migrations pendentes.
+              </p>
+            </div>
+
+            {/* Current DB URL */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p className="text-xs font-medium text-gray-500 mb-1">Conexão atual</p>
+              {dbUrlMasked ? (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm text-neutral-900">{dbUrlMasked}</span>
+                  {dbUrlSource === 'custom' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary font-medium">customizada</span>
+                  )}
+                  {dbUrlSource === 'env' && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 font-medium">variável de ambiente</span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+              )}
+            </div>
+
+            {/* New DB URL form */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Nova DATABASE_URL
+              </label>
+              <input
+                type="password"
+                value={dbUrlInput}
+                onChange={(e) => {
+                  setDbUrlInput(e.target.value)
+                  if (dbTestState !== 'idle') {
+                    setDbTestState('idle')
+                    setDbTestMsg('')
                   }
                 }}
-                className="px-4 py-2 rounded-lg bg-brand-primary text-white text-[13px] font-medium hover:bg-brand-primary/90 transition-colors"
-              >
-                Atualizar banco agora
-              </button>
-            )}
-            {dbMigrateState === 'running' && (
-              <button disabled className="px-4 py-2 rounded-lg bg-gray-200 text-gray-400 text-[13px] font-medium cursor-not-allowed">
-                Atualizando...
-              </button>
-            )}
-            {(dbMigrateState === 'running' || dbMigrateState === 'done' || dbMigrateState === 'error') && (
-              <div className="mt-4 font-mono text-sm bg-neutral-900 rounded-lg p-4 h-48 overflow-y-auto space-y-0.5">
-                {dbLogs.map((line, i) => (
-                  <p key={i} className={line.color === 'green' ? 'text-green-400' : line.color === 'red' ? 'text-red-400' : 'text-gray-100'}>
-                    {line.text}
-                  </p>
-                ))}
-                {dbMigrateState === 'running' && <p className="text-green-400 animate-pulse">_</p>}
-              </div>
-            )}
-            {dbMigrateState === 'done' && (
-              <div className="mt-3 flex gap-3">
-                <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-green-600 text-white text-[13px] font-medium hover:bg-green-700 transition-colors">
-                  Recarregar página
+                placeholder="postgresql://user:senha@host:5432/dbname"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+              />
+              <p className="text-xs text-gray-400">
+                A senha fica oculta. Use o formato: postgresql://usuario:senha@host:porta/banco
+              </p>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={() => void handleDbTestConnection()}
+                  disabled={!dbUrlInput.trim() || dbTestState === 'testing'}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-[13px] font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {dbTestState === 'testing' ? 'Testando...' : 'Testar Conexão'}
                 </button>
-                <button onClick={() => { setDbMigrateState('idle'); setDbLogs([]) }} className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-[13px] font-medium hover:bg-gray-200 transition-colors">
-                  Rodar novamente
+
+                <button
+                  onClick={() => void handleDbSaveAndMigrate()}
+                  disabled={dbTestState !== 'ok' || dbSaveState === 'saving'}
+                  className="px-4 py-2 rounded-lg bg-brand-primary text-white text-[13px] font-medium hover:bg-brand-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {dbSaveState === 'saving' ? 'Salvando...' : 'Salvar e Aplicar Migrations'}
                 </button>
+
+                {dbTestState === 'ok' && (
+                  <span className="text-[13px] text-green-600 font-medium flex items-center gap-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    {dbTestMsg}
+                  </span>
+                )}
+                {dbTestState === 'error' && (
+                  <span className="text-[13px] text-red-600 font-medium flex items-center gap-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    {dbTestMsg}
+                  </span>
+                )}
               </div>
-            )}
-            {dbMigrateState === 'error' && (
-              <button onClick={() => { setDbMigrateState('idle'); setDbLogs([]) }} className="mt-3 px-4 py-2 rounded-lg bg-red-600 text-white text-[13px] font-medium hover:bg-red-700 transition-colors">
-                Tentar novamente
-              </button>
-            )}
+            </div>
+
+            {/* Divider */}
+            <hr className="border-gray-100" />
+
+            {/* Migrations */}
+            <div>
+              <h3 className="text-sm font-semibold text-neutral-900 mb-1">Migrations Pendentes</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Aplique migrations pendentes para atualizar o schema do banco atual.
+              </p>
+              {dbMigrateState === 'idle' && (
+                <button
+                  onClick={async () => {
+                    setDbMigrateState('running')
+                    setDbLogs([])
+                    type MigrateEvent =
+                      | { type: 'migration'; name: string; status: 'applying' | 'done' | 'skipped' }
+                      | { type: 'complete'; message: string }
+                      | { type: 'error'; name: string; message: string }
+                    try {
+                      const res = await fetch('/api/admin/db-migrate', { method: 'POST' })
+                      if (!res.body) { setDbMigrateState('error'); setDbLogs([{ text: 'Erro: resposta sem corpo.', color: 'red' }]); return }
+                      const reader = res.body.getReader()
+                      const decoder = new TextDecoder()
+                      let buffer = ''
+                      while (true) {
+                        const { done, value } = await reader.read()
+                        if (done) break
+                        buffer += decoder.decode(value, { stream: true })
+                        const parts = buffer.split('\n\n')
+                        buffer = parts.pop() ?? ''
+                        for (const part of parts) {
+                          const line = part.replace(/^data: /, '').trim()
+                          if (!line) continue
+                          try {
+                            const event: MigrateEvent = JSON.parse(line)
+                            if (event.type === 'migration') {
+                              if (event.status === 'applying') setDbLogs((p) => [...p, { text: `▸ Aplicando ${event.name}.sql...`, color: 'green' }])
+                              else if (event.status === 'done') setDbLogs((p) => [...p, { text: `✓ ${event.name}.sql`, color: 'white' }])
+                            } else if (event.type === 'complete') {
+                              setDbLogs((p) => [...p, { text: `✓ ${event.message}`, color: 'white' }])
+                              setDbMigrateState('done')
+                            } else if (event.type === 'error') {
+                              setDbLogs((p) => [...p, { text: `✗ ${event.message}`, color: 'red' }])
+                              setDbMigrateState('error')
+                            }
+                          } catch { /* ignora parse error */ }
+                        }
+                      }
+                    } catch (err) {
+                      setDbLogs((p) => [...p, { text: `✗ ${err instanceof Error ? err.message : String(err)}`, color: 'red' }])
+                      setDbMigrateState('error')
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-brand-primary text-white text-[13px] font-medium hover:bg-brand-primary/90 transition-colors"
+                >
+                  Atualizar banco agora
+                </button>
+              )}
+              {dbMigrateState === 'running' && (
+                <button disabled className="px-4 py-2 rounded-lg bg-gray-200 text-gray-400 text-[13px] font-medium cursor-not-allowed">
+                  Atualizando...
+                </button>
+              )}
+              {(dbMigrateState === 'running' || dbMigrateState === 'done' || dbMigrateState === 'error') && (
+                <div className="mt-4 font-mono text-sm bg-neutral-900 rounded-lg p-4 h-48 overflow-y-auto space-y-0.5">
+                  {dbLogs.map((line, i) => (
+                    <p key={i} className={line.color === 'green' ? 'text-green-400' : line.color === 'red' ? 'text-red-400' : 'text-gray-100'}>
+                      {line.text}
+                    </p>
+                  ))}
+                  {dbMigrateState === 'running' && <p className="text-green-400 animate-pulse">_</p>}
+                </div>
+              )}
+              {dbMigrateState === 'done' && (
+                <div className="mt-3 flex gap-3">
+                  <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-green-600 text-white text-[13px] font-medium hover:bg-green-700 transition-colors">
+                    Recarregar página
+                  </button>
+                  <button onClick={() => { setDbMigrateState('idle'); setDbLogs([]) }} className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-[13px] font-medium hover:bg-gray-200 transition-colors">
+                    Rodar novamente
+                  </button>
+                </div>
+              )}
+              {dbMigrateState === 'error' && (
+                <button onClick={() => { setDbMigrateState('idle'); setDbLogs([]) }} className="mt-3 px-4 py-2 rounded-lg bg-red-600 text-white text-[13px] font-medium hover:bg-red-700 transition-colors">
+                  Tentar novamente
+                </button>
+              )}
+            </div>
           </section>
         )
 
       case 'api':
+
         return (
           <section className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-neutral-900 mb-3">API</h2>

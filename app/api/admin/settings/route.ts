@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { db } from '@/drizzle/db'
+import { db, reconnectDb } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
 import { getSettings } from '@/lib/settings'
 import { eq } from 'drizzle-orm'
@@ -94,6 +94,14 @@ const putSchema = z.object({
       color_warning: hexColor.optional(),
     })
     .optional(),
+  database: z
+    .object({
+      url: z.string().refine(
+        (v) => v.startsWith('postgresql://') || v.startsWith('postgres://'),
+        { message: 'URL deve começar com postgresql:// ou postgres://' }
+      ),
+    })
+    .optional(),
 })
 
 async function upsertSetting(key: string, value: string) {
@@ -137,7 +145,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { template, colors, company, ai, newsletter, telegram, firecrawl, pexels } = parsed.data
+    const { template, colors, company, ai, newsletter, telegram, firecrawl, pexels, database } = parsed.data
 
     if (template !== undefined) {
       await upsertSetting('active_template', template)
@@ -193,6 +201,12 @@ export async function PUT(request: Request) {
           ? JSON.parse(rows[0].value)
           : { bot_token: '', allowed_chat_ids: '' }
       await upsertSetting('telegram_config', JSON.stringify({ ...existing, ...telegram }))
+    }
+
+    if (database?.url !== undefined) {
+      await upsertSetting('database_url', database.url)
+      // Reconecta o pool em memória para queries subsequentes nesta instância
+      reconnectDb(database.url)
     }
 
     const current = await getSettings()
