@@ -38,13 +38,13 @@ export async function getDbPendingMigrations(): Promise<string[]> {
 }
 
 export async function ensureMigrationsTable(): Promise<void> {
-  await db.execute(sql`
+  await db.execute(sql.raw(`
     CREATE TABLE IF NOT EXISTS drizzle_migrations (
       id serial PRIMARY KEY,
       migration_name text NOT NULL UNIQUE,
       created_at timestamp DEFAULT now() NOT NULL
     )
-  `)
+  `))
 }
 
 export async function applyMigration(tag: string): Promise<void> {
