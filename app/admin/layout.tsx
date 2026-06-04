@@ -5,6 +5,8 @@ import { verifyToken } from '@/lib/auth'
 import { getSettings } from '@/lib/settings'
 import { AdminThemeProvider } from '@/components/admin/AdminThemeProvider'
 import { AdminTopBar } from '@/components/admin/AdminTopBar'
+import { getDbPendingMigrations } from '@/lib/db-migrations'
+import { DbUpdateModal } from '@/components/blog/DbUpdateModal'
 
 const navItems = [
   {
@@ -105,8 +107,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const initials = blogName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
+  const pendingMigrations = await getDbPendingMigrations()
+
   return (
     <AdminThemeProvider>
+      <DbUpdateModal pending={pendingMigrations} />
       <div className="min-h-screen flex admin-shell">
         {/* Sidebar */}
         <aside className="admin-sidebar w-[220px] flex flex-col shrink-0">
