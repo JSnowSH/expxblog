@@ -8,8 +8,12 @@ import { dispatchWebhookEvent } from '@/lib/webhooks'
 
 export const dynamic = 'force-dynamic'
 
+// Art. 8º LGPD — consentimento deve ser livre, informado e inequívoco
 const bodySchema = z.object({
   email: z.string().email('E-mail inválido').max(200),
+  consent: z.literal(true, {
+    errorMap: () => ({ message: 'É necessário aceitar a Política de Privacidade para se inscrever.' }),
+  }),
 })
 
 export async function POST(request: Request) {
@@ -17,10 +21,13 @@ export async function POST(request: Request) {
     const body = await request.json()
     const parsed = bodySchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ error: 'E-mail inválido.' }, { status: 400 })
+      const firstError = parsed.error.issues[0]?.message ?? 'Dados inválidos.'
+      return NextResponse.json({ error: firstError }, { status: 400 })
     }
 
     const { email } = parsed.data
+    const consentAt = new Date()
+    const consentTextVersion = 'v1-2026-06'
 
     const existing = await db
       .select()
@@ -32,16 +39,28 @@ export async function POST(request: Request) {
       if (existing[0].status === 'active') {
         return NextResponse.json({ error: 'Este e-mail já está inscrito.' }, { status: 409 })
       }
+      // Reativação: atualiza consent
       await db
         .update(newsletterSubscribers)
-        .set({ status: 'active', subscribed_at: new Date(), unsubscribed_at: null })
+        .set({
+          status: 'active',
+          subscribed_at: consentAt,
+          unsubscribed_at: null,
+          consent_at: consentAt,
+          consent_text_version: consentTextVersion,
+        })
         .where(eq(newsletterSubscribers.email, email))
       return NextResponse.json({ ok: true })
     }
 
     const [inserted] = await db
       .insert(newsletterSubscribers)
-      .values({ email, unsubscribe_token: randomUUID() })
+      .values({
+        email,
+        unsubscribe_token: randomUUID(),
+        consent_at: consentAt,
+        consent_text_version: consentTextVersion,
+      })
       .returning()
 
     dispatchWebhookEvent('newsletter_subscribed', {
@@ -51,7 +70,7 @@ export async function POST(request: Request) {
       subscribed_at: inserted.subscribed_at,
     })
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true }, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Erro interno do servidor.' }, { status: 500 })
   }

@@ -100,8 +100,13 @@ CREATE TABLE IF NOT EXISTS "newsletter_subscribers" (
   "status" text NOT NULL DEFAULT 'active',
   "subscribed_at" timestamp NOT NULL DEFAULT now(),
   "unsubscribed_at" timestamp,
-  "unsubscribe_token" text UNIQUE
+  "unsubscribe_token" text UNIQUE,
+  "consent_at" timestamp,
+  "consent_text_version" text
 );
+-- Migração idempotente: garante colunas em bancos existentes
+ALTER TABLE IF EXISTS "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "consent_at" timestamp;
+ALTER TABLE IF EXISTS "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "consent_text_version" text;
 
 CREATE INDEX IF NOT EXISTS "newsletter_email_idx" ON "newsletter_subscribers" ("email");
 CREATE INDEX IF NOT EXISTS "newsletter_status_idx" ON "newsletter_subscribers" ("status");

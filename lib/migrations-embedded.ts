@@ -250,6 +250,9 @@ CREATE INDEX "posts_published_published_at_idx" ON "posts" USING btree ("publish
 ALTER TABLE "posts" ADD COLUMN IF NOT EXISTS "newsletter_sent_at" timestamp;--> statement-breakpoint
 UPDATE "newsletter_subscribers" SET "unsubscribe_token" = gen_random_uuid()::text WHERE "unsubscribe_token" IS NULL;--> statement-breakpoint
 ALTER TABLE "newsletter_subscribers" ADD CONSTRAINT "newsletter_subscribers_unsubscribe_token_unique" UNIQUE("unsubscribe_token");`,
+
+  '0004_magenta_william_stryker': `ALTER TABLE "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "consent_at" timestamp;--> statement-breakpoint
+ALTER TABLE "newsletter_subscribers" ADD COLUMN IF NOT EXISTS "consent_text_version" text;`,
 }
 
 // Ordem de aplicação (mesma do _journal.json)
@@ -258,4 +261,5 @@ export const MIGRATION_ORDER = [
   '0001_rapid_zzzax',
   '0002_messy_omega_red',
   '0003_careless_fixer',
+  '0004_magenta_william_stryker',
 ]

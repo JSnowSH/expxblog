@@ -64,6 +64,8 @@ export function MinimalFooter({
 
         <p className="text-xs text-gray-300">
           © {new Date().getFullYear()} {companyName || blogName}. Todos os direitos reservados.
+          {'  ·  '}
+          <Link href="/politica-de-privacidade" className="hover:text-gray-500 transition-colors underline">Política de Privacidade</Link>
         </p>
       </div>
     </footer>

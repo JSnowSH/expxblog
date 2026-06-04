@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/drizzle/db'
 import { pageViews, posts } from '@/drizzle/schema'
 import { eq, and, gte } from 'drizzle-orm'
+import { createHash } from 'crypto'
+
+/**
+ * Gera um fingerprint anonimizado para deduplicação de page views.
+ *
+ * Salt diário: deriva da data (YYYY-MM-DD) + JWT_SECRET — garante que o hash
+ * seja diferente a cada dia, impossibilitando reconstruir o IP original.
+ *
+ * Nota sobre dedup de 5 min: a janela de deduplicação é sempre dentro do mesmo
+ * dia, portanto o salt não muda durante a janela. Na virada do dia o salt muda
+ * e uma nova visita gera hash diferente — comportamento esperado.
+ *
+ * Art. 7º e 5º LGPD — dado pessoal anonimizado não está sujeito ao tratamento.
+ */
+function hashFingerprint(ip: string, path: string): string {
+  const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+  const secret = process.env.JWT_SECRET ?? ''
+  const salt = today + secret
+  return createHash('sha256').update(ip + path + salt).digest('hex')
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +41,7 @@ export async function POST(request: NextRequest) {
       request.headers.get('x-real-ip') ||
       'unknown'
 
-    const fingerprint = `${ip}-${path}`
+    const fingerprint = hashFingerprint(ip, path)
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
 
     const recent = await db
@@ -72,9 +92,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Track error:', error)
-    return NextResponse.json({ 
-      error: 'Internal error', 
-      details: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 })
+    // Art. 48 LGPD — nunca expor detalhes internos em resposta de erro
+    return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

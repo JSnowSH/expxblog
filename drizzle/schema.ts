@@ -155,6 +155,8 @@ export const newsletterSubscribers = pgTable(
     subscribed_at: timestamp('subscribed_at').notNull().default(sql`now()`),
     unsubscribed_at: timestamp('unsubscribed_at'),
     unsubscribe_token: text('unsubscribe_token').unique(),
+    consent_at: timestamp('consent_at'),
+    consent_text_version: text('consent_text_version'),
   },
   (t) => ({
     emailIdx: index('newsletter_email_idx').on(t.email),

@@ -139,6 +139,8 @@ export async function DarkAuroraFooter({
           style={{ borderColor: 'rgba(139,92,246,0.15)', color: 'rgba(255,255,255,0.2)' }}
         >
           © {new Date().getFullYear()} {companyName || blogName}. Todos os direitos reservados.
+          {'  ·  '}
+          <Link href="/politica-de-privacidade" className="transition-colors underline" style={{ color: 'rgba(255,255,255,0.3)' }}>Política de Privacidade</Link>
         </div>
       </div>
     </footer>

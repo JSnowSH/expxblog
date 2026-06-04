@@ -145,6 +145,8 @@ async function getMissingTables(): Promise<string[]> {
 const EXPECTED_COLUMNS = [
   { table: 'newsletter_subscribers', column: 'unsubscribe_token' },
   { table: 'posts', column: 'newsletter_sent_at' },
+  { table: 'newsletter_subscribers', column: 'consent_at' },
+  { table: 'newsletter_subscribers', column: 'consent_text_version' },
 ] as const
 
 /** Retorna true se alguma coluna crítica estiver faltando no banco. */
