@@ -8,6 +8,7 @@ import { db } from '@/drizzle/db'
 import { pageViews, automationLogs, aiRequestLogs, newsletterSubscribers } from '@/drizzle/schema'
 import { lt, and, eq, isNotNull } from 'drizzle-orm'
 import { sql } from 'drizzle-orm'
+import { getLgpdSettings, DEFAULT_LGPD } from '@/lib/settings'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 800
@@ -25,10 +26,15 @@ export async function POST(request: NextRequest) {
   const started = Date.now()
   const now = new Date()
 
-  // Limites de retenção
-  const pageViewCutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)        // 12 meses
-  const logsCutoff = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000)             // 6 meses
-  const unsubscribedCutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)      // 30 dias
+  // Limites de retenção — lidos de site_settings (fallback aos defaults LGPD)
+  const lgpdCfg = await getLgpdSettings()
+  const pageviewMonths = lgpdCfg.retention_pageviews_months || DEFAULT_LGPD.retention_pageviews_months
+  const logsMonths = lgpdCfg.retention_logs_months || DEFAULT_LGPD.retention_logs_months
+  const unsubDays = lgpdCfg.retention_unsubscribed_days || DEFAULT_LGPD.retention_unsubscribed_days
+
+  const pageViewCutoff = new Date(now.getTime() - pageviewMonths * 30 * 24 * 60 * 60 * 1000)
+  const logsCutoff = new Date(now.getTime() - logsMonths * 30 * 24 * 60 * 60 * 1000)
+  const unsubscribedCutoff = new Date(now.getTime() - unsubDays * 24 * 60 * 60 * 1000)
 
   const results: Record<string, number> = {}
   const errors: string[] = []

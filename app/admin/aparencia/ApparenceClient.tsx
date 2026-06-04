@@ -635,6 +635,263 @@ const TEMPLATE_OPTIONS = [
       </svg>
     ),
   },
+  {
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'Jornal/revista clássico, serifado, colunas e tons sóbrios broadsheet',
+    preview: (
+      <svg viewBox="0 0 280 180" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="ed-img" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#D1D5DB" />
+            <stop offset="100%" stopColor="#B8BDC6" />
+          </linearGradient>
+        </defs>
+        {/* Browser chrome */}
+        <rect x="0" y="0" width="280" height="180" fill="#E4E7EC" rx="8" />
+        <rect x="2" y="2" width="276" height="176" fill="#F5F3EE" rx="7" />
+        <rect x="2" y="2" width="276" height="16" fill="#ECEEF2" rx="7" />
+        <circle cx="11" cy="10" r="3" fill="#FC5F57" />
+        <circle cx="20" cy="10" r="3" fill="#FEBC2E" />
+        <circle cx="29" cy="10" r="3" fill="#28C840" />
+        <rect x="60" y="6" width="130" height="8" fill="white" rx="3" opacity="0.8" />
+        {/* Masthead — large serif title centered */}
+        <rect x="2" y="18" width="276" height="28" fill="white" />
+        <rect x="2" y="45" width="276" height="0.5" fill="#111111" />
+        <rect x="60" y="24" width="160" height="10" fill="#111111" rx="1" opacity="0.85" />
+        {/* Nav bar below masthead */}
+        <rect x="2" y="46" width="276" height="10" fill="white" />
+        <rect x="2" y="56" width="276" height="0.5" fill="#D1D5DB" />
+        <rect x="12" y="49" width="18" height="4" fill="#111111" rx="1" opacity="0.9" />
+        <rect x="36" y="49" width="22" height="4" fill="#9CA3AF" rx="1" />
+        <rect x="64" y="49" width="18" height="4" fill="#9CA3AF" rx="1" />
+        <rect x="88" y="49" width="24" height="4" fill="#9CA3AF" rx="1" />
+        <rect x="118" y="49" width="18" height="4" fill="#9CA3AF" rx="1" />
+        <rect x="222" y="47" width="50" height="8" fill="#F3F4F6" rx="2" stroke="#E5E7EB" strokeWidth="0.5" />
+        {/* 3-col editorial grid */}
+        {/* Col 1 — wide */}
+        <rect x="8" y="62" width="128" height="78" fill="white" stroke="#E5E7EB" strokeWidth="0.5" />
+        <rect x="8" y="62" width="128" height="44" fill="url(#ed-img)" />
+        <rect x="12" y="110" width="80" height="5" fill="#111111" rx="1" opacity="0.85" />
+        <rect x="12" y="118" width="116" height="3" fill="#6B7280" rx="1" opacity="0.6" />
+        <rect x="12" y="124" width="100" height="3" fill="#9CA3AF" rx="1" opacity="0.5" />
+        <rect x="12" y="130" width="112" height="3" fill="#9CA3AF" rx="1" opacity="0.4" />
+        {/* Col 2 */}
+        <rect x="142" y="62" width="60" height="36" fill="url(#ed-img)" />
+        <rect x="142" y="102" width="58" height="5" fill="#111111" rx="1" opacity="0.8" />
+        <rect x="142" y="110" width="56" height="3" fill="#9CA3AF" rx="1" opacity="0.5" />
+        <rect x="142" y="116" width="50" height="3" fill="#9CA3AF" rx="1" opacity="0.4" />
+        <rect x="142" y="130" width="60" height="0.5" fill="#D1D5DB" />
+        <rect x="142" y="134" width="56" height="5" fill="#111111" rx="1" opacity="0.8" />
+        <rect x="142" y="142" width="52" height="3" fill="#9CA3AF" rx="1" opacity="0.4" />
+        {/* Col 3 */}
+        <rect x="208" y="62" width="64" height="36" fill="url(#ed-img)" />
+        <rect x="208" y="102" width="62" height="5" fill="#111111" rx="1" opacity="0.8" />
+        <rect x="208" y="110" width="58" height="3" fill="#9CA3AF" rx="1" opacity="0.5" />
+        <rect x="208" y="116" width="52" height="3" fill="#9CA3AF" rx="1" opacity="0.4" />
+        <rect x="208" y="130" width="64" height="0.5" fill="#D1D5DB" />
+        <rect x="208" y="134" width="60" height="5" fill="#111111" rx="1" opacity="0.8" />
+        <rect x="208" y="142" width="54" height="3" fill="#9CA3AF" rx="1" opacity="0.4" />
+        {/* Footer dark */}
+        <rect x="2" y="152" width="276" height="26" fill="#111111" rx="3" />
+        <rect x="90" y="162" width="100" height="3" fill="white" rx="1" opacity="0.2" />
+      </svg>
+    ),
+  },
+  {
+    id: 'saas',
+    name: 'Startup / SaaS',
+    description: 'Header limpo com gradiente, cantos arredondados, vibe de landing page',
+    preview: (
+      <svg viewBox="0 0 280 180" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="saas-grad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#1A4FA0" />
+            <stop offset="100%" stopColor="#3B82F6" />
+          </linearGradient>
+          <linearGradient id="saas-img" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#DBEAFE" />
+            <stop offset="100%" stopColor="#BFDBFE" />
+          </linearGradient>
+          <linearGradient id="saas-hero" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#EFF6FF" />
+            <stop offset="100%" stopColor="#DBEAFE" />
+          </linearGradient>
+        </defs>
+        {/* Browser chrome */}
+        <rect x="0" y="0" width="280" height="180" fill="#E4E7EC" rx="8" />
+        <rect x="2" y="2" width="276" height="176" fill="#F8FAFC" rx="7" />
+        <rect x="2" y="2" width="276" height="16" fill="#ECEEF2" rx="7" />
+        <circle cx="11" cy="10" r="3" fill="#FC5F57" />
+        <circle cx="20" cy="10" r="3" fill="#FEBC2E" />
+        <circle cx="29" cy="10" r="3" fill="#28C840" />
+        <rect x="60" y="6" width="130" height="8" fill="white" rx="3" opacity="0.8" />
+        {/* White header with subtle shadow */}
+        <rect x="2" y="18" width="276" height="20" fill="white" />
+        <rect x="2" y="37" width="276" height="1" fill="#F1F5F9" />
+        {/* Gradient logo */}
+        <rect x="12" y="23" width="50" height="8" fill="url(#saas-grad)" rx="4" opacity="0.9" />
+        {/* Nav links */}
+        <rect x="80" y="25" width="16" height="4" fill="#94A3B8" rx="2" />
+        <rect x="102" y="25" width="20" height="4" fill="#94A3B8" rx="2" />
+        <rect x="128" y="25" width="16" height="4" fill="#94A3B8" rx="2" />
+        <rect x="150" y="25" width="18" height="4" fill="#94A3B8" rx="2" />
+        {/* Active nav pill */}
+        <rect x="72" y="22" width="32" height="10" fill="#EFF6FF" rx="5" />
+        <rect x="78" y="25" width="20" height="4" fill="#1A4FA0" rx="2" />
+        {/* Search */}
+        <rect x="232" y="22" width="38" height="10" fill="#F1F5F9" rx="5" stroke="#E2E8F0" strokeWidth="0.5" />
+        {/* Hero gradient banner */}
+        <rect x="8" y="43" width="264" height="44" fill="url(#saas-hero)" rx="8" />
+        <rect x="20" y="55" width="120" height="7" fill="url(#saas-grad)" rx="3" opacity="0.8" />
+        <rect x="20" y="65" width="90" height="4" fill="#64748B" rx="2" opacity="0.6" />
+        <rect x="168" y="50" width="38" height="14" fill="url(#saas-grad)" rx="7" opacity="0.9" />
+        {/* 3-col cards with rounded corners */}
+        <rect x="8" y="93" width="82" height="42" fill="white" stroke="#E2E8F0" strokeWidth="0.5" rx="8" />
+        <rect x="8" y="93" width="82" height="22" fill="url(#saas-img)" rx="8" />
+        <rect x="12" y="119" width="60" height="4" fill="#94A3B8" rx="2" />
+        <rect x="12" y="126" width="44" height="3" fill="#CBD5E1" rx="1.5" opacity="0.6" />
+        <rect x="99" y="93" width="82" height="42" fill="white" stroke="#E2E8F0" strokeWidth="0.5" rx="8" />
+        <rect x="99" y="93" width="82" height="22" fill="url(#saas-img)" rx="8" />
+        <rect x="103" y="119" width="60" height="4" fill="#94A3B8" rx="2" />
+        <rect x="103" y="126" width="44" height="3" fill="#CBD5E1" rx="1.5" opacity="0.6" />
+        <rect x="190" y="93" width="82" height="42" fill="white" stroke="#E2E8F0" strokeWidth="0.5" rx="8" />
+        <rect x="190" y="93" width="82" height="22" fill="url(#saas-img)" rx="8" />
+        <rect x="194" y="119" width="60" height="4" fill="#94A3B8" rx="2" />
+        <rect x="194" y="126" width="44" height="3" fill="#CBD5E1" rx="1.5" opacity="0.6" />
+        {/* Second row */}
+        <rect x="8" y="141" width="82" height="28" fill="white" stroke="#E2E8F0" strokeWidth="0.5" rx="8" />
+        <rect x="12" y="148" width="54" height="4" fill="#94A3B8" rx="2" />
+        <rect x="12" y="155" width="40" height="3" fill="#CBD5E1" rx="1.5" opacity="0.5" />
+        <rect x="99" y="141" width="82" height="28" fill="white" stroke="#E2E8F0" strokeWidth="0.5" rx="8" />
+        <rect x="103" y="148" width="54" height="4" fill="#94A3B8" rx="2" />
+        <rect x="103" y="155" width="40" height="3" fill="#CBD5E1" rx="1.5" opacity="0.5" />
+        <rect x="190" y="141" width="82" height="28" fill="white" stroke="#E2E8F0" strokeWidth="0.5" rx="8" />
+        <rect x="194" y="148" width="54" height="4" fill="#94A3B8" rx="2" />
+        <rect x="194" y="155" width="40" height="3" fill="#CBD5E1" rx="1.5" opacity="0.5" />
+        {/* Footer */}
+        <rect x="2" y="172" width="276" height="6" fill="#F8FAFC" rx="3" />
+        <rect x="90" y="174" width="100" height="2" fill="#E2E8F0" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    id: 'lifestyle',
+    name: 'Lifestyle',
+    description: 'Revista de moda/lifestyle, tipografia grande, elegante e muito whitespace',
+    preview: (
+      <svg viewBox="0 0 280 180" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="ls-img" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E7E0D8" />
+            <stop offset="100%" stopColor="#D4C8BB" />
+          </linearGradient>
+          <linearGradient id="ls-img2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#DDD6CE" />
+            <stop offset="100%" stopColor="#C9C0B6" />
+          </linearGradient>
+        </defs>
+        {/* Browser chrome */}
+        <rect x="0" y="0" width="280" height="180" fill="#E4E7EC" rx="8" />
+        <rect x="2" y="2" width="276" height="176" fill="#FAFAF8" rx="7" />
+        <rect x="2" y="2" width="276" height="16" fill="#ECEEF2" rx="7" />
+        <circle cx="11" cy="10" r="3" fill="#FC5F57" />
+        <circle cx="20" cy="10" r="3" fill="#FEBC2E" />
+        <circle cx="29" cy="10" r="3" fill="#28C840" />
+        <rect x="60" y="6" width="130" height="8" fill="white" rx="3" opacity="0.8" />
+        {/* Lifestyle header: large centered serif name */}
+        <rect x="2" y="18" width="276" height="30" fill="#FAFAF8" />
+        <rect x="2" y="47" width="276" height="0.5" fill="#E5E0D9" />
+        {/* Italic serif blog name centered */}
+        <rect x="70" y="25" width="140" height="14" fill="#1A1A1A" rx="2" opacity="0.82" />
+        {/* Thin nav bar */}
+        <rect x="2" y="48" width="276" height="12" fill="white" />
+        <rect x="2" y="60" width="276" height="0.5" fill="#E5E0D9" />
+        <rect x="56" y="52" width="18" height="3.5" fill="#1A1A1A" rx="1" opacity="0.8" />
+        <rect x="80" y="52" width="22" height="3.5" fill="#9CA3AF" rx="1" />
+        <rect x="108" y="52" width="20" height="3.5" fill="#9CA3AF" rx="1" />
+        <rect x="134" y="52" width="24" height="3.5" fill="#9CA3AF" rx="1" />
+        <rect x="210" y="50" width="50" height="8" fill="#F5F3F0" rx="2" stroke="#E5E0D9" strokeWidth="0.5" />
+        {/* Hero large image */}
+        <rect x="8" y="66" width="264" height="54" fill="url(#ls-img)" rx="2" />
+        {/* Hero text overlay */}
+        <rect x="8" y="96" width="264" height="24" fill="#1A1A1A" opacity="0.35" rx="2" />
+        <rect x="20" y="99" width="34" height="7" fill="#F8B400" rx="3.5" opacity="0.9" />
+        <rect x="20" y="109" width="160" height="6" fill="white" rx="1.5" opacity="0.9" />
+        {/* 2-col grid below */}
+        <rect x="8" y="126" width="128" height="40" fill="white" stroke="#E5E0D9" strokeWidth="0.5" rx="2" />
+        <rect x="8" y="126" width="128" height="22" fill="url(#ls-img2)" rx="2" />
+        <rect x="14" y="152" width="80" height="5" fill="#1A1A1A" rx="1" opacity="0.75" />
+        <rect x="14" y="160" width="60" height="3" fill="#9CA3AF" rx="1" opacity="0.5" />
+        <rect x="144" y="126" width="128" height="40" fill="white" stroke="#E5E0D9" strokeWidth="0.5" rx="2" />
+        <rect x="144" y="126" width="128" height="22" fill="url(#ls-img)" rx="2" />
+        <rect x="150" y="152" width="80" height="5" fill="#1A1A1A" rx="1" opacity="0.75" />
+        <rect x="150" y="160" width="60" height="3" fill="#9CA3AF" rx="1" opacity="0.5" />
+        {/* Footer */}
+        <rect x="2" y="170" width="276" height="8" fill="#F5F3F0" rx="3" />
+        <rect x="90" y="173" width="100" height="2" fill="#D4C8BB" rx="1" opacity="0.6" />
+      </svg>
+    ),
+  },
+  {
+    id: 'brutalist',
+    name: 'Brutalista',
+    description: 'Bordas grossas, alto contraste preto/branco, font-mono, estilo criativo',
+    preview: (
+      <svg viewBox="0 0 280 180" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="brut-img" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#D1D5DB" />
+            <stop offset="100%" stopColor="#9CA3AF" />
+          </linearGradient>
+        </defs>
+        {/* Browser chrome */}
+        <rect x="0" y="0" width="280" height="180" fill="#E4E7EC" rx="8" />
+        <rect x="2" y="2" width="276" height="176" fill="#FFFFFF" rx="7" />
+        <rect x="2" y="2" width="276" height="16" fill="#ECEEF2" rx="7" />
+        <circle cx="11" cy="10" r="3" fill="#FC5F57" />
+        <circle cx="20" cy="10" r="3" fill="#FEBC2E" />
+        <circle cx="29" cy="10" r="3" fill="#28C840" />
+        <rect x="60" y="6" width="130" height="8" fill="white" rx="3" opacity="0.8" />
+        {/* Header: black with thick bottom border */}
+        <rect x="2" y="18" width="276" height="20" fill="#000000" />
+        <rect x="2" y="38" width="276" height="3" fill="#F58A2D" />
+        {/* Mono blog name */}
+        <rect x="12" y="23" width="48" height="8" fill="white" rx="1" opacity="0.95" />
+        {/* Nav links mono */}
+        <rect x="72" y="25" width="22" height="4" fill="white" rx="1" opacity="0.75" />
+        <rect x="100" y="25" width="18" height="4" fill="white" rx="1" opacity="0.45" />
+        <rect x="124" y="25" width="24" height="4" fill="white" rx="1" opacity="0.45" />
+        <rect x="152" y="25" width="20" height="4" fill="white" rx="1" opacity="0.45" />
+        {/* Search with border */}
+        <rect x="230" y="22" width="40" height="10" fill="none" stroke="white" strokeWidth="1.5" />
+        {/* Hero: big bordered box */}
+        <rect x="8" y="46" width="264" height="52" fill="#000000" />
+        <rect x="8" y="46" width="264" height="52" fill="none" stroke="#F58A2D" strokeWidth="2" />
+        <rect x="16" y="62" width="100" height="10" fill="white" rx="1" opacity="0.9" />
+        <rect x="16" y="75" width="140" height="6" fill="white" rx="1" opacity="0.5" />
+        <rect x="180" y="56" width="44" height="18" fill="#F58A2D" />
+        <rect x="188" y="62" width="28" height="6" fill="#000000" rx="1" opacity="0.8" />
+        {/* 3-col cards with thick borders */}
+        <rect x="8" y="104" width="82" height="42" fill="white" stroke="#000000" strokeWidth="2" />
+        <rect x="8" y="104" width="82" height="22" fill="url(#brut-img)" />
+        <rect x="12" y="130" width="60" height="5" fill="#000000" rx="1" opacity="0.85" />
+        <rect x="12" y="138" width="44" height="3.5" fill="#6B7280" rx="1" opacity="0.6" />
+        <rect x="99" y="104" width="82" height="42" fill="white" stroke="#000000" strokeWidth="2" />
+        <rect x="99" y="104" width="82" height="22" fill="url(#brut-img)" />
+        <rect x="103" y="130" width="60" height="5" fill="#000000" rx="1" opacity="0.85" />
+        <rect x="103" y="138" width="44" height="3.5" fill="#6B7280" rx="1" opacity="0.6" />
+        <rect x="190" y="104" width="82" height="42" fill="white" stroke="#000000" strokeWidth="2" />
+        <rect x="190" y="104" width="82" height="22" fill="url(#brut-img)" />
+        <rect x="194" y="130" width="60" height="5" fill="#000000" rx="1" opacity="0.85" />
+        <rect x="194" y="138" width="44" height="3.5" fill="#6B7280" rx="1" opacity="0.6" />
+        {/* Footer: black with orange top border */}
+        <rect x="2" y="152" width="276" height="3" fill="#F58A2D" />
+        <rect x="2" y="155" width="276" height="23" fill="#000000" rx="3" />
+        <rect x="90" y="163" width="100" height="3" fill="white" rx="1" opacity="0.2" />
+      </svg>
+    ),
+  },
 ]
 
 const COLOR_LABELS: { key: keyof ThemeColors; label: string }[] = [
@@ -653,6 +910,10 @@ const DEFAULT_COLORS: Record<string, ThemeColors> = {
   minimal: { primary: '#111111', secondary: '#6B7280', background: '#FFFFFF', surface: '#FFFFFF' },
   magazine: { primary: '#1A1A1A', secondary: '#C8102E', background: '#F8F5F0', surface: '#FFFFFF' },
   'dark-aurora': { primary: '#8B5CF6', secondary: '#22D3EE', background: '#0B0F1A', surface: '#141824' },
+  editorial: { primary: '#1A1A1A', secondary: '#B91C1C', background: '#F5F3EE', surface: '#FFFFFF' },
+  saas: { primary: '#1A4FA0', secondary: '#3B82F6', background: '#F8FAFC', surface: '#FFFFFF' },
+  lifestyle: { primary: '#1A1A1A', secondary: '#F8B400', background: '#FAFAF8', surface: '#FFFFFF' },
+  brutalist: { primary: '#000000', secondary: '#F58A2D', background: '#FFFFFF', surface: '#FFFFFF' },
 }
 
 type SectionId = 'template' | 'logo' | 'import' | 'colors' | 'typography' | 'font-sizes' | 'radius' | 'semantic-colors'
@@ -813,27 +1074,27 @@ export function ApparenceClient({ initial }: Props) {
         return (
           <section>
             <h2 className="text-lg font-semibold text-neutral-900 mb-4">Template</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {TEMPLATE_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   onClick={() => handleTemplateChange(opt.id)}
-                  className={`relative text-left rounded-xl border-2 p-4 transition-all ${
+                  className={`relative text-left rounded-xl border-2 p-3 transition-all ${
                     template === opt.id
                       ? 'border-brand-primary bg-brand-primary-light'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
                   {template === opt.id && (
-                    <span className="absolute top-3 right-3 bg-brand-primary text-white text-xs px-2 py-0.5 rounded-full">
+                    <span className="absolute top-2 right-2 bg-brand-primary text-white text-xs px-2 py-0.5 rounded-full">
                       Ativo
                     </span>
                   )}
-                  <div className="mb-3 rounded overflow-hidden border border-gray-100 max-h-32">
+                  <div className="mb-2 rounded overflow-hidden border border-gray-100 max-h-24">
                     {opt.preview}
                   </div>
                   <p className="font-semibold text-neutral-900">{opt.name}</p>
-                  <p className="text-sm text-gray-500 mt-0.5">{opt.description}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{opt.description}</p>
                 </button>
               ))}
             </div>

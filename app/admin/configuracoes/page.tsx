@@ -1,8 +1,9 @@
-import { getSettings } from '@/lib/settings'
+import { getSettings, getLgpdSettings } from '@/lib/settings'
 import { getDefaultModels, getAIApiKey, getAIModelFromDB } from '@/lib/ai'
 import { getTelegramConfig } from '@/lib/telegram'
 import { getFirecrawlApiKey } from '@/lib/firecrawl'
 import { getPexelsApiKey } from '@/lib/pexels'
+import { getResendApiKey, getNewsletterFromEmail, getNewsletterAutoSend } from '@/lib/email'
 import { ConfiguracoesClient } from './ConfiguracoesClient'
 
 export default async function ConfiguracoesPage() {
@@ -18,6 +19,10 @@ export default async function ConfiguracoesPage() {
   const telegramConfig = await getTelegramConfig()
   const firecrawlApiKey = (await getFirecrawlApiKey()) ?? ''
   const pexelsApiKey = (await getPexelsApiKey()) ?? ''
+  const lgpdSettings = await getLgpdSettings()
+  const resendApiKey = (await getResendApiKey()) ?? ''
+  const resendFromEmail = await getNewsletterFromEmail()
+  const resendAutoSend = await getNewsletterAutoSend()
 
   return (
     <ConfiguracoesClient
@@ -29,6 +34,8 @@ export default async function ConfiguracoesPage() {
       }}
       initialFirecrawl={{ api_key: firecrawlApiKey }}
       initialPexels={{ api_key: pexelsApiKey }}
+      initialLgpd={lgpdSettings}
+      initialResend={{ api_key: resendApiKey, from_email: resendFromEmail, auto_send: resendAutoSend }}
     />
   )
 }

@@ -5,6 +5,7 @@ import { db } from '@/drizzle/db'
 import { newsletterSubscribers } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { dispatchWebhookEvent } from '@/lib/webhooks'
+import { getLgpdSettings, DEFAULT_LGPD } from '@/lib/settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
 
     const { email } = parsed.data
     const consentAt = new Date()
-    const consentTextVersion = 'v1-2026-06'
+    const lgpdCfg = await getLgpdSettings()
+    const consentTextVersion = lgpdCfg.consent_version || DEFAULT_LGPD.consent_version
 
     const existing = await db
       .select()

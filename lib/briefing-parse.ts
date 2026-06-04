@@ -3,6 +3,7 @@ import { db } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { aiChat } from '@/lib/ai'
+import { extractJson } from '@/lib/json-extract'
 import type { CompanyInfo } from '@/lib/settings'
 
 const SYSTEM_PROMPT = `Você é um assistente que extrai dados estruturados de textos de briefing empresarial.
@@ -72,17 +73,8 @@ export async function parseBriefingContent(briefingContent?: string): Promise<Pa
     { temperature: 0.1, max_tokens: 512 }
   )
 
-  // Parse defensivo: remove cercas de código, faz trim e tenta JSON.parse
-  const cleaned = raw
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/i, '')
-    .trim()
-
-  try {
-    const parsed = JSON.parse(cleaned)
-    const validated = companySchema.safeParse(parsed)
-    return validated.success ? validated.data : {}
-  } catch {
-    return {}
-  }
+  const parsed = extractJson(raw)
+  if (!parsed) return {}
+  const validated = companySchema.safeParse(parsed)
+  return validated.success ? validated.data : {}
 }

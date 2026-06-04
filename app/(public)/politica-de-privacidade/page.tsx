@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
-import { getSettings } from '@/lib/settings'
+import { getSettings, getLgpdSettings } from '@/lib/settings'
 import { getAppUrl } from '@/lib/app-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { company } = await getSettings()
+  const lgpd = await getLgpdSettings()
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const baseUrl = getAppUrl()
   return {
@@ -16,9 +17,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PoliticaDePrivacidadePage() {
   const { company } = await getSettings()
+  const lgpd = await getLgpdSettings()
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const companyName = company.company_name || blogName
   const companyEmail = company.company_email || 'privacidade@seudominio.com'
+  const dpoEmail = lgpd.dpo_email || companyEmail
+  const dpoName = lgpd.dpo_name || ''
+  const controllerName = lgpd.controller_name || companyName
   const baseUrl = getAppUrl()
   const today = new Date()
   const lastUpdated = today.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -33,7 +38,7 @@ export default async function PoliticaDePrivacidadePage() {
         <section>
           <h2 className="text-xl font-semibold font-sans">1. Quem somos</h2>
           <p>
-            <strong>{companyName}</strong> é responsável pelo blog <strong>{blogName}</strong>
+            <strong>{controllerName}</strong> é responsável pelo blog <strong>{blogName}</strong>
             {' '}(acessível em <a href={baseUrl} className="text-brand-primary underline">{baseUrl}</a>).
             Esta Política de Privacidade descreve como coletamos, usamos e protegemos seus dados pessoais,
             em conformidade com a Lei Geral de Proteção de Dados (Lei n.º 13.709/2018 — LGPD).
@@ -171,11 +176,13 @@ export default async function PoliticaDePrivacidadePage() {
             Para questões, solicitações ou reclamações relacionadas a privacidade e proteção de dados,
             entre em contato com nosso Encarregado:
           </p>
+          {dpoName && (
+            <p><strong>Nome:</strong> {dpoName}</p>
+          )}
           <p>
             <strong>E-mail:</strong>{' '}
-            <a href={`mailto:${companyEmail}`} className="text-brand-primary underline">
-              {/* TODO: substituir pelo e-mail do DPO/privacidade, ex: privacidade@seudominio.com */}
-              {companyEmail}
+            <a href={`mailto:${dpoEmail}`} className="text-brand-primary underline">
+              {dpoEmail}
             </a>
           </p>
           <p>

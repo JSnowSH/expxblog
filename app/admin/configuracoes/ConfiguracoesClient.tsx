@@ -12,13 +12,14 @@ import {
   IconTelegram,
   IconVercel,
   IconBancoDados,
+  IconNewsletter,
 } from '@/components/admin/icons/ExpxIcons'
 
 import { useState, useEffect, type ReactNode } from 'react'
 import { usePageTitle } from '@/components/admin/AdminPageTitleContext'
 import { Button } from '@/components/ui/Button'
 import { ModelCombobox } from '@/components/ui/ModelCombobox'
-import type { CompanyInfo } from '@/lib/settings'
+import type { CompanyInfo, LgpdSettings } from '@/lib/settings'
 import WebhooksSection from '@/components/admin/WebhooksSection'
 
 interface AISettings {
@@ -39,16 +40,31 @@ interface PexelsSettings {
   api_key: string
 }
 
+interface ResendSettings {
+  api_key: string
+  from_email: string
+  auto_send: boolean
+}
+
 interface Props {
   initial: CompanyInfo
   initialAI: AISettings
   initialTelegram: TelegramSettings
   initialFirecrawl: FirecrawlSettings
   initialPexels: PexelsSettings
+  initialResend: ResendSettings
+  initialLgpd: LgpdSettings
+}
+
+type LgpdCheckItem = {
+  id: string
+  label: string
+  ok: boolean
+  detail: string
 }
 
 type CompanyKey = keyof CompanyInfo
-type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'api' | 'telegram' | 'vercel' | 'banco' | 'webhooks'
+type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'resend' | 'api' | 'telegram' | 'vercel' | 'banco' | 'webhooks' | 'lgpd'
 
 interface RemoteModel {
   id: string
@@ -75,6 +91,7 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
   { id: 'ai-logs', label: 'Logs de IA', icon: <IconAILogs /> },
   { id: 'firecrawl', label: 'Firecrawl', icon: <IconFirecrawl /> },
   { id: 'pexels', label: 'Pexels', icon: <IconImagem /> },
+  { id: 'resend', label: 'Resend (Email)', icon: <IconNewsletter /> },
   { id: 'api', label: 'API', icon: <IconChaves /> },
   { id: 'telegram', label: 'Telegram Bot', icon: <IconTelegram /> },
   { id: 'vercel', label: 'Plano Vercel', icon: <IconVercel /> },
@@ -82,6 +99,11 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
   { id: 'webhooks', label: 'Webhooks', icon: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" />
+    </svg>
+  ) },
+  { id: 'lgpd', label: 'LGPD', icon: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </svg>
   ) },
 ]
@@ -112,12 +134,18 @@ const SECTIONS: Record<string, { fields: { key: CompanyKey; label: string; type?
   },
 }
 
-export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initialFirecrawl, initialPexels }: Props) {
+export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initialFirecrawl, initialPexels, initialResend, initialLgpd }: Props) {
   const [company, setCompany] = useState<CompanyInfo>(initial)
   const [ai, setAI] = useState<AISettings>(initialAI)
   const [telegram, setTelegram] = useState<TelegramSettings>(initialTelegram)
   const [firecrawl, setFirecrawl] = useState<FirecrawlSettings>(initialFirecrawl)
   const [pexels, setPexels] = useState<PexelsSettings>(initialPexels)
+  const [resend, setResend] = useState<ResendSettings>(initialResend)
+  const [sendingTest, setSendingTest] = useState(false)
+  const [lgpd, setLgpd] = useState<LgpdSettings>(initialLgpd)
+  const [lgpdSaving, setLgpdSaving] = useState(false)
+  const [lgpdStatus, setLgpdStatus] = useState<LgpdCheckItem[] | null>(null)
+  const [lgpdStatusLoading, setLgpdStatusLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const [activeSection, setActiveSection] = useState<SectionId>('blog')
@@ -222,6 +250,16 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
         })
         .catch(() => {})
     }
+    if (activeSection === 'lgpd') {
+      setLgpdStatusLoading(true)
+      fetch('/api/admin/lgpd/status')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { checks: LgpdCheckItem[] } | null) => {
+          if (d) setLgpdStatus(d.checks)
+        })
+        .catch(() => {})
+        .finally(() => setLgpdStatusLoading(false))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection])
 
@@ -283,6 +321,56 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
 
   function handlePexelsKeyChange(value: string) {
     setPexels((prev) => ({ ...prev, api_key: value }))
+  }
+
+  function handleLgpdChange<K extends keyof LgpdSettings>(key: K, value: LgpdSettings[K]) {
+    setLgpd((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleLgpdSave() {
+    setLgpdSaving(true)
+    setToast(null)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lgpd }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Falha ao salvar')
+      }
+      setToast({ type: 'success', msg: 'Configurações LGPD salvas com sucesso!' })
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar configurações LGPD.' })
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setLgpdSaving(false)
+    }
+  }
+
+  function handleResendChange<K extends keyof ResendSettings>(key: K, value: ResendSettings[K]) {
+    setResend((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleSendTestResend() {
+    setSendingTest(true)
+    try {
+      const res = await fetch('/api/admin/newsletter/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Falha ao enviar e-mail de teste')
+      setToast({ type: 'success', msg: 'E-mail de teste enviado!' })
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao enviar teste.' })
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setSendingTest(false)
+    }
   }
 
   async function handleDbTestConnection() {
@@ -477,7 +565,7 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company, ai, telegram, firecrawl, pexels }),
+        body: JSON.stringify({ company, ai, telegram, firecrawl, pexels, resend }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -618,6 +706,80 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                 placeholder="Sua chave da API Pexels..."
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
               />
+            </div>
+          </section>
+        )
+      case 'resend':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Resend (Email)</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Configure sua chave da API do Resend para habilitar o envio de e-mails via newsletter. Obtenha sua chave em{' '}
+              <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline">
+                resend.com
+              </a>
+              .
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Resend API Key</label>
+                <input
+                  type="password"
+                  value={resend.api_key}
+                  onChange={(e) => handleResendChange('api_key', e.target.value)}
+                  placeholder="re_xxxxxxxxxxxx"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Obtenha sua chave em{' '}
+                  <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline">
+                    resend.com
+                  </a>
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail remetente</label>
+                <input
+                  type="email"
+                  value={resend.from_email}
+                  onChange={(e) => handleResendChange('from_email', e.target.value)}
+                  placeholder="newsletter@seudominio.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <p className="text-xs text-gray-400 mt-1">Deve ser um domínio verificado no Resend.</p>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Enviar automaticamente ao publicar</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Dispara o e-mail para todos os inscritos ativos sempre que um post for publicado.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleResendChange('auto_send', !resend.auto_send)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    resend.auto_send ? 'bg-brand-primary' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      resend.auto_send ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+              <div className="border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => void handleSendTestResend()}
+                  disabled={sendingTest || !resend.api_key || !resend.from_email}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {sendingTest ? 'Enviando...' : 'Enviar e-mail de teste'}
+                </button>
+                <p className="text-xs text-gray-400 mt-2">Envia um e-mail de teste para o e-mail remetente configurado acima.</p>
+              </div>
             </div>
           </section>
         )
@@ -1322,6 +1484,194 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
               >
                 <span>⬇️</span> Baixar OpenAPI JSON
               </a>
+            </div>
+          </section>
+        )
+
+      case 'lgpd':
+        return (
+          <section className="space-y-6">
+            {/* Header */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-neutral-900 mb-1">LGPD</h2>
+              <p className="text-sm text-gray-500">
+                Configurações de conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018).
+              </p>
+            </div>
+
+            {/* Grupo 1: Encarregado/Empresa */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-4">Encarregado (DPO) e Controlador</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome do DPO</label>
+                  <input
+                    type="text"
+                    value={lgpd.dpo_name}
+                    onChange={(e) => handleLgpdChange('dpo_name', e.target.value)}
+                    placeholder="Ex: João Silva"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail do DPO</label>
+                  <input
+                    type="email"
+                    value={lgpd.dpo_email}
+                    onChange={(e) => handleLgpdChange('dpo_email', e.target.value)}
+                    placeholder="privacidade@suaempresa.com.br"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Exibido na Política de Privacidade e usado para verificar se o DPO está configurado.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Razão Social do Controlador</label>
+                  <input
+                    type="text"
+                    value={lgpd.controller_name}
+                    onChange={(e) => handleLgpdChange('controller_name', e.target.value)}
+                    placeholder="Ex: Minha Empresa Ltda"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CNPJ do Controlador</label>
+                  <input
+                    type="text"
+                    value={lgpd.controller_cnpj}
+                    onChange={(e) => handleLgpdChange('controller_cnpj', e.target.value)}
+                    placeholder="00.000.000/0001-00"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Grupo 2: Prazos de Retenção */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-1">Prazos de Retenção de Dados</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Esses valores são lidos pela rotina diária de limpeza automática (cron). Altere com cuidado.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Page views — retenção (meses)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={lgpd.retention_pageviews_months}
+                    onChange={(e) => handleLgpdChange('retention_pageviews_months', Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Padrão: 12 meses. Page views com mais de X meses são excluídos automaticamente.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Logs de automação e IA — retenção (meses)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={lgpd.retention_logs_months}
+                    onChange={(e) => handleLgpdChange('retention_logs_months', Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Padrão: 6 meses.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    E-mails cancelados — exclusão (dias após cancelamento)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={lgpd.retention_unsubscribed_days}
+                    onChange={(e) => handleLgpdChange('retention_unsubscribed_days', Number(e.target.value))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Padrão: 30 dias. Inscrições com status cancelado são excluídas após X dias.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Grupo 3: Consentimento */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-4">Consentimento da Newsletter</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Texto do checkbox</label>
+                  <textarea
+                    value={lgpd.consent_text}
+                    onChange={(e) => handleLgpdChange('consent_text', e.target.value)}
+                    rows={2}
+                    placeholder="Li e aceito a Política de Privacidade"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Texto exibido no checkbox de consentimento ao se inscrever na newsletter.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Versão do consentimento</label>
+                  <input
+                    type="text"
+                    value={lgpd.consent_version}
+                    onChange={(e) => handleLgpdChange('consent_version', e.target.value)}
+                    placeholder="v1-2026-06"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Identificador da versão do consentimento gravado em cada inscrição.
+                    Altere ao atualizar a Política de Privacidade (ex: v2-2026-12).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Botão salvar */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => void handleLgpdSave()}
+                disabled={lgpdSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {lgpdSaving ? 'Salvando...' : 'Salvar configurações LGPD'}
+              </button>
+            </div>
+
+            {/* Grupo 4: Painel de status */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-neutral-900 mb-4">Painel de Conformidade</h3>
+              {lgpdStatusLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : lgpdStatus ? (
+                <ul className="space-y-3">
+                  {lgpdStatus.map((check) => (
+                    <li key={check.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100">
+                      {check.ok ? (
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-green-600">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-red-500">
+                          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                      )}
+                      <div className="min-w-0">
+                        <p className={`text-sm font-medium ${check.ok ? 'text-neutral-900' : 'text-red-700'}`}>{check.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{check.detail}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-400">Nenhum dado de conformidade disponível.</p>
+              )}
             </div>
           </section>
         )

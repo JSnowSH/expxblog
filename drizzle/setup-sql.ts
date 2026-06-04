@@ -234,4 +234,13 @@ CREATE TABLE IF NOT EXISTS "webhooks" (
 );
 
 CREATE INDEX IF NOT EXISTS "webhooks_enabled_idx" ON "webhooks" ("enabled");
+
+-- Default agents_extra: Designer uses SVG code generation (gratuito, sem custo externo)
+INSERT INTO "site_settings" ("key", "value", "updated_at")
+VALUES (
+  'agents_extra',
+  '{"designer":{"image_source":"code","code_style":"gradient","designer_enabled":true}}',
+  now()
+)
+ON CONFLICT ("key") DO NOTHING;
 `

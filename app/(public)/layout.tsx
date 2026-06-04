@@ -6,11 +6,19 @@ import { TechHeader } from '@/components/layout/TechHeader'
 import { MinimalHeader } from '@/components/layout/MinimalHeader'
 import { MagazineHeader } from '@/components/layout/MagazineHeader'
 import { DarkAuroraHeader } from '@/components/layout/DarkAuroraHeader'
+import { EditorialHeader } from '@/components/layout/EditorialHeader'
+import { SaasHeader } from '@/components/layout/SaasHeader'
+import { LifestyleHeader } from '@/components/layout/LifestyleHeader'
+import { BrutalistHeader } from '@/components/layout/BrutalistHeader'
 import { Footer } from '@/components/layout/Footer'
 import { TechFooter } from '@/components/layout/TechFooter'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
 import { MagazineFooter } from '@/components/layout/MagazineFooter'
 import { DarkAuroraFooter } from '@/components/layout/DarkAuroraFooter'
+import { EditorialFooter } from '@/components/layout/EditorialFooter'
+import { SaasFooter } from '@/components/layout/SaasFooter'
+import { LifestyleFooter } from '@/components/layout/LifestyleFooter'
+import { BrutalistFooter } from '@/components/layout/BrutalistFooter'
 import { NewsletterSection } from '@/components/blog/NewsletterSection'
 import { getSettings } from '@/lib/settings'
 import { getAppUrl } from '@/lib/app-url'
@@ -38,6 +46,14 @@ export default async function PublicLayout({ children }: { children: React.React
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const logoUrl = company.logo_url
 
+  const wideTemplates = ['portal', 'business', 'news', 'tech', 'magazine', 'dark-aurora', 'saas', 'brutalist']
+  const narrowTemplates = ['minimal']
+  const mainWidth = wideTemplates.includes(template)
+    ? 'max-w-7xl'
+    : narrowTemplates.includes(template)
+      ? 'max-w-4xl'
+      : 'max-w-6xl'
+
   return (
     <div className="min-h-screen flex flex-col">
       {template === 'portal'
@@ -54,27 +70,21 @@ export default async function PublicLayout({ children }: { children: React.React
                   ? <MagazineHeader blogName={blogName} logoUrl={logoUrl} />
                   : template === 'dark-aurora'
                     ? <DarkAuroraHeader blogName={blogName} logoUrl={logoUrl} />
-                    : <Header blogName={blogName} logoUrl={logoUrl} />
+                    : template === 'editorial'
+                      ? <EditorialHeader blogName={blogName} logoUrl={logoUrl} />
+                      : template === 'saas'
+                        ? <SaasHeader blogName={blogName} logoUrl={logoUrl} />
+                        : template === 'lifestyle'
+                          ? <LifestyleHeader blogName={blogName} logoUrl={logoUrl} />
+                          : template === 'brutalist'
+                            ? <BrutalistHeader blogName={blogName} logoUrl={logoUrl} />
+                            : <Header blogName={blogName} logoUrl={logoUrl} />
       }
-      <main
-        className={`flex-1 w-full mx-auto px-4 py-8 ${
-          template === 'portal' || template === 'business' || template === 'news' || template === 'tech' || template === 'magazine' || template === 'dark-aurora'
-            ? 'max-w-7xl'
-            : template === 'minimal'
-              ? 'max-w-4xl'
-              : 'max-w-6xl'
-        }`}
-      >
+      <main className={`flex-1 w-full mx-auto px-4 py-8 ${mainWidth}`}>
         {children}
       </main>
       {newsletter.enabled && (
-        <div className={`w-full mx-auto px-4 ${
-          template === 'portal' || template === 'business' || template === 'news' || template === 'tech' || template === 'magazine' || template === 'dark-aurora'
-            ? 'max-w-7xl'
-            : template === 'minimal'
-              ? 'max-w-4xl'
-              : 'max-w-6xl'
-        }`}>
+        <div className={`w-full mx-auto px-4 ${mainWidth}`}>
           <NewsletterSection title={newsletter.title} subtitle={newsletter.subtitle} />
         </div>
       )}
@@ -110,6 +120,46 @@ export default async function PublicLayout({ children }: { children: React.React
         />
       ) : template === 'dark-aurora' ? (
         <DarkAuroraFooter
+          blogName={blogName}
+          companyName={company.company_name}
+          companyEmail={company.company_email}
+          socialFacebook={company.social_facebook}
+          socialInstagram={company.social_instagram}
+          socialTwitter={company.social_twitter}
+          socialYoutube={company.social_youtube}
+        />
+      ) : template === 'editorial' ? (
+        <EditorialFooter
+          blogName={blogName}
+          companyName={company.company_name}
+          companyEmail={company.company_email}
+          socialFacebook={company.social_facebook}
+          socialInstagram={company.social_instagram}
+          socialTwitter={company.social_twitter}
+          socialYoutube={company.social_youtube}
+        />
+      ) : template === 'saas' ? (
+        <SaasFooter
+          blogName={blogName}
+          companyName={company.company_name}
+          companyEmail={company.company_email}
+          socialFacebook={company.social_facebook}
+          socialInstagram={company.social_instagram}
+          socialTwitter={company.social_twitter}
+          socialYoutube={company.social_youtube}
+        />
+      ) : template === 'lifestyle' ? (
+        <LifestyleFooter
+          blogName={blogName}
+          companyName={company.company_name}
+          companyEmail={company.company_email}
+          socialFacebook={company.social_facebook}
+          socialInstagram={company.social_instagram}
+          socialTwitter={company.social_twitter}
+          socialYoutube={company.social_youtube}
+        />
+      ) : template === 'brutalist' ? (
+        <BrutalistFooter
           blogName={blogName}
           companyName={company.company_name}
           companyEmail={company.company_email}

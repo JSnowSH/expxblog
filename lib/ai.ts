@@ -68,6 +68,12 @@ export interface OpenRouterOptions {
   signal?: AbortSignal
   /** Identificador da feature para fins de log (ex: 'content_generation') */
   feature?: string
+  /**
+   * Solicita response_format: json_object ao modelo.
+   * Modelos que não suportam esse parâmetro receberão um reenvio automático
+   * sem o campo (um único fallback, sem loop).
+   */
+  jsonMode?: boolean
 }
 
 export interface OpenRouterResponse {
@@ -140,23 +146,63 @@ export async function callOpenRouter(
 
   const startedAt = Date.now()
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    signal,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-      'HTTP-Referer': getAppUrl(),
-      'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog',
-    },
-    body: JSON.stringify({
+  const buildBody = (withJsonMode: boolean) =>
+    JSON.stringify({
       model: options.model,
       messages: injectDateContext(options.messages),
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 1024,
       ...(options.top_p !== undefined ? { top_p: options.top_p } : {}),
-    }),
+      ...(withJsonMode ? { response_format: { type: 'json_object' } } : {}),
+    })
+
+  const requestHeaders = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${key}`,
+    'HTTP-Referer': getAppUrl(),
+    'X-Title': process.env.NEXT_PUBLIC_BLOG_NAME ?? 'Blog',
+  }
+
+  let response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    signal,
+    headers: requestHeaders,
+    body: buildBody(options.jsonMode === true),
   })
+
+  // Fallback: se jsonMode estava ativo e o modelo não suporta response_format,
+  // reenvia uma única vez sem o parâmetro antes de lançar o erro.
+  if (!response.ok && options.jsonMode) {
+    const status = response.status
+    const errText = await response.text()
+    const looksLikeFormatError =
+      (status === 400 || status === 404 || status === 422) &&
+      (errText.toLowerCase().includes('response_format') ||
+        errText.toLowerCase().includes('json'))
+    if (looksLikeFormatError) {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        signal,
+        headers: requestHeaders,
+        body: buildBody(false),
+      })
+    } else {
+      // Não é erro de formato — registra e lança imediatamente.
+      const duration_ms = Date.now() - startedAt
+      void persistAiLog({
+        feature: options.feature ?? 'unknown',
+        model: options.model,
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+        cost_usd: 0,
+        status: 'error',
+        error: `HTTP ${status}`,
+        duration_ms,
+      })
+      throw new Error(`OpenRouter API error (${status}): ${errText}`)
+    }
+  }
 
   const duration_ms = Date.now() - startedAt
 

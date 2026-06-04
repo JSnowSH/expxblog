@@ -18,7 +18,7 @@ export async function runDesignerAgent(
 
   const config = await getAgentConfig('designer')
   const extra = await getAgentsExtra()
-  const imageSource = extra['designer']?.image_source ?? 'pexels'
+  const imageSource = extra['designer']?.image_source ?? 'code'
 
   let imageBuffer: Buffer
   let contentType = 'image/jpeg'

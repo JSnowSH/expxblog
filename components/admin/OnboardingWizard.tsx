@@ -66,7 +66,6 @@ interface ArticleTheme {
 type WizardStep =
   | 'welcome'
   | 'api_key'
-  | 'pexels'
   | 'briefing'
   | 'company'
   | 'themes'
@@ -101,7 +100,7 @@ const STATUS_ICONS: Record<string, string> = {
 }
 
 // Steps in order — used to determine progress bar width and skip logic
-const STEP_ORDER: WizardStep[] = ['welcome', 'api_key', 'pexels', 'briefing', 'company', 'themes', 'generate', 'success']
+const STEP_ORDER: WizardStep[] = ['welcome', 'api_key', 'briefing', 'company', 'themes', 'generate', 'success']
 
 // ---------------------------------------------------------------------------
 // Component
@@ -123,10 +122,6 @@ export default function OnboardingWizard() {
   // Step: api_key
   const [apiKey, setApiKey] = useState('')
   const [savingKey, setSavingKey] = useState(false)
-
-  // Step: pexels
-  const [pexelsKey, setPexelsKey] = useState('')
-  const [savingPexels, setSavingPexels] = useState(false)
 
   // Step: briefing
   const [briefingUrl, setBriefingUrl] = useState('')
@@ -295,73 +290,11 @@ export default function OnboardingWizard() {
         return
       }
       showToast('success', 'Chave salva com sucesso')
-      goToStep('pexels')
+      goToStep('briefing')
     } catch {
       showToast('error', 'Erro ao salvar chave da API')
     } finally {
       setSavingKey(false)
-    }
-  }
-
-  async function handleSavePexels() {
-    if (!pexelsKey.trim()) {
-      showToast('error', 'Informe a chave da API do Pexels')
-      return
-    }
-    setSavingPexels(true)
-    try {
-      const res = await fetch('/api/admin/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pexels: { api_key: pexelsKey.trim() } }),
-      })
-      if (!res.ok) {
-        const data = await res.json() as { error?: string }
-        showToast('error', data.error || 'Erro ao salvar chave do Pexels')
-        return
-      }
-      showToast('success', 'Chave do Pexels salva com sucesso')
-      goToStep('briefing')
-    } catch {
-      showToast('error', 'Erro ao salvar chave do Pexels')
-    } finally {
-      setSavingPexels(false)
-    }
-  }
-
-  // Pular Pexels: desabilita o agente Designer para manter o pipeline 100% gratuito
-  // (sem capa gerada por IA, que exigiria créditos).
-  async function handleSkipPexels() {
-    setSavingPexels(true)
-    try {
-      // Lê o agents_extra atual para fazer merge — só prossegue se o GET for bem-sucedido,
-      // senão sobrescreveríamos a config existente com um objeto vazio.
-      const getRes = await fetch('/api/admin/agents/extra')
-      if (!getRes.ok) {
-        showToast('error', 'Erro ao desabilitar geração de capa. Tente novamente.')
-        return
-      }
-      const data = await getRes.json() as { agents_extra?: Record<string, Record<string, unknown>> }
-      const current = data.agents_extra ?? {}
-      const merged = {
-        ...current,
-        designer: { ...(current.designer ?? {}), designer_enabled: false },
-      }
-      const putRes = await fetch('/api/admin/agents/extra', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agents_extra: merged }),
-      })
-      if (!putRes.ok) {
-        showToast('error', 'Erro ao desabilitar geração de capa. Tente novamente.')
-        return
-      }
-      showToast('success', 'Avançando sem Pexels — artigos serão gerados sem capa')
-      goToStep('briefing')
-    } catch {
-      showToast('error', 'Erro ao desabilitar geração de capa. Tente novamente.')
-    } finally {
-      setSavingPexels(false)
     }
   }
 
@@ -705,7 +638,6 @@ export default function OnboardingWizard() {
               <div className="grid grid-cols-2 gap-3 text-left text-xs text-gray-500 max-w-xs mx-auto">
                 {[
                   'Conectar API de IA',
-                  'Capas gratuitas (Pexels)',
                   'Briefing da empresa',
                   'Dados da empresa',
                   'Gerar temas',
@@ -768,58 +700,6 @@ export default function OnboardingWizard() {
                 className="w-full bg-brand-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingKey ? 'Salvando...' : 'Salvar e continuar'}
-              </button>
-            </div>
-          )}
-
-          {/* STEP: pexels */}
-          {step === 'pexels' && (
-            <div className="space-y-5">
-              <div>
-                <h2 className="text-lg font-bold text-neutral-900 mb-1">Capas gratuitas com Pexels</h2>
-                <p className="text-sm text-gray-500">
-                  Conecte a API gratuita do{' '}
-                  <a
-                    href="https://www.pexels.com/api/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-brand-primary underline"
-                  >
-                    Pexels
-                  </a>
-                  {' '}para gerar as capas dos artigos sem custo. Se pular, os artigos serão criados sem imagem de capa.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  Chave API do Pexels
-                </label>
-                <input
-                  type="password"
-                  value={pexelsKey}
-                  onChange={(e) => setPexelsKey(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSavePexels()}
-                  placeholder="Cole sua chave do Pexels"
-                  autoFocus
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono"
-                />
-              </div>
-
-              <button
-                onClick={handleSavePexels}
-                disabled={savingPexels || !pexelsKey.trim()}
-                className="w-full bg-brand-primary text-white py-3 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {savingPexels ? 'Salvando...' : 'Salvar e continuar'}
-              </button>
-
-              <button
-                onClick={handleSkipPexels}
-                disabled={savingPexels}
-                className="w-full text-sm text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
-              >
-                Pular esta etapa (artigos sem capa)
               </button>
             </div>
           )}

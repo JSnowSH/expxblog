@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db, reconnectDb } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
-import { getSettings } from '@/lib/settings'
+import { getSettings, getLgpdSettings } from '@/lib/settings'
 import { applyDbMode } from '@/lib/db-connection'
 import { eq } from 'drizzle-orm'
 
@@ -13,7 +13,7 @@ const hexColor = z
   .regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida (use formato #RRGGBB)')
 
 const putSchema = z.object({
-  template: z.enum(['default', 'portal', 'business', 'news', 'tech', 'minimal', 'magazine', 'dark-aurora']).optional(),
+  template: z.enum(['default', 'portal', 'business', 'news', 'tech', 'minimal', 'magazine', 'dark-aurora', 'editorial', 'saas', 'lifestyle', 'brutalist']).optional(),
   colors: z
     .object({
       primary: hexColor,
@@ -67,6 +67,13 @@ const putSchema = z.object({
       api_key: z.string().optional(),
     })
     .optional(),
+  resend: z
+    .object({
+      api_key: z.string().optional(),
+      from_email: z.string().email('E-mail remetente inválido').or(z.literal('')).optional(),
+      auto_send: z.boolean().optional(),
+    })
+    .optional(),
   design_system: z
     .object({
       font_sans: z.string().max(200).optional(),
@@ -106,6 +113,19 @@ const putSchema = z.object({
         .optional(),
       // Modo de conexão: reescreve a porta da URL (session=5432, transaction=6543, direct=5432).
       mode: z.enum(['session', 'transaction', 'direct']).optional(),
+    })
+    .optional(),
+  lgpd: z
+    .object({
+      dpo_name: z.string().max(150).optional(),
+      dpo_email: z.string().email('E-mail inválido').or(z.literal('')).optional(),
+      controller_name: z.string().max(150).optional(),
+      controller_cnpj: z.string().max(20).optional(),
+      retention_pageviews_months: z.number().int().positive().optional(),
+      retention_logs_months: z.number().int().positive().optional(),
+      retention_unsubscribed_days: z.number().int().positive().optional(),
+      consent_text: z.string().max(500).optional(),
+      consent_version: z.string().max(50).optional(),
     })
     .optional(),
 })
@@ -151,7 +171,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { template, colors, company, ai, newsletter, telegram, firecrawl, pexels, database } = parsed.data
+    const { template, colors, company, ai, newsletter, telegram, firecrawl, pexels, resend, database, lgpd } = parsed.data
 
     if (template !== undefined) {
       await upsertSetting('active_template', template)
@@ -194,6 +214,18 @@ export async function PUT(request: Request) {
 
     if (pexels?.api_key !== undefined) {
       await upsertSetting('pexels_api_key', pexels.api_key)
+    }
+
+    if (resend !== undefined) {
+      if (resend.api_key !== undefined) {
+        await upsertSetting('resend_api_key', resend.api_key)
+      }
+      if (resend.from_email !== undefined) {
+        await upsertSetting('newsletter_from_email', resend.from_email)
+      }
+      if (resend.auto_send !== undefined) {
+        await upsertSetting('newsletter_auto_send', resend.auto_send ? 'true' : 'false')
+      }
     }
 
     if (telegram !== undefined) {
@@ -241,6 +273,20 @@ export async function PUT(request: Request) {
       // Reconecta o pool em memória para queries subsequentes nesta instância
       // (o max do pool é derivado da porta/modo da nova URL).
       reconnectDb(nextUrl)
+    }
+
+    if (lgpd !== undefined) {
+      const lgpdCurrent = await getLgpdSettings()
+      const lgpdMerged = { ...lgpdCurrent, ...lgpd }
+      if (lgpdMerged.dpo_name !== undefined) await upsertSetting('lgpd_dpo_name', lgpdMerged.dpo_name)
+      if (lgpdMerged.dpo_email !== undefined) await upsertSetting('lgpd_dpo_email', lgpdMerged.dpo_email)
+      if (lgpdMerged.controller_name !== undefined) await upsertSetting('lgpd_controller_name', lgpdMerged.controller_name)
+      if (lgpdMerged.controller_cnpj !== undefined) await upsertSetting('lgpd_controller_cnpj', lgpdMerged.controller_cnpj)
+      if (lgpdMerged.retention_pageviews_months !== undefined) await upsertSetting('lgpd_retention_pageviews_months', String(lgpdMerged.retention_pageviews_months))
+      if (lgpdMerged.retention_logs_months !== undefined) await upsertSetting('lgpd_retention_logs_months', String(lgpdMerged.retention_logs_months))
+      if (lgpdMerged.retention_unsubscribed_days !== undefined) await upsertSetting('lgpd_retention_unsubscribed_days', String(lgpdMerged.retention_unsubscribed_days))
+      if (lgpdMerged.consent_text !== undefined) await upsertSetting('lgpd_consent_text', lgpdMerged.consent_text)
+      if (lgpdMerged.consent_version !== undefined) await upsertSetting('lgpd_consent_version', lgpdMerged.consent_version)
     }
 
     const current = await getSettings()
