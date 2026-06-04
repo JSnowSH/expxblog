@@ -23,6 +23,7 @@ const NO_SCHEMA_MARKER = '__banco_sem_schema__'
 export function DbUpdateModal({ pending }: Props) {
   const [state, setState] = useState<ModalState>('idle')
   const [logs, setLogs] = useState<LogLine[]>([])
+  const [dismissed, setDismissed] = useState(false)
   const logRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export function DbUpdateModal({ pending }: Props) {
     }
   }, [logs])
 
-  if (pending.length === 0) return null
+  if (pending.length === 0 || dismissed) return null
 
   // Caso especial: banco vazio mas arquivos .sql não acessíveis no bundle
   const noSchema = pending.includes(NO_SCHEMA_MARKER)
@@ -123,9 +124,10 @@ export function DbUpdateModal({ pending }: Props) {
               <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
             </svg>
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="text-[15px] font-semibold text-neutral-900">Atualização necessária</h2>
             <p className="text-[13px] text-gray-500 mt-0.5">
+
               {state === 'idle'
                 ? noSchema
                   ? 'O banco de dados não tem schema criado.'
@@ -137,6 +139,18 @@ export function DbUpdateModal({ pending }: Props) {
                 : 'Ocorreu um erro durante a atualização.'}
             </p>
           </div>
+          {state !== 'running' && (
+            <button
+              onClick={() => setDismissed(true)}
+              className="ml-2 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+              title="Fechar e configurar manualmente"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Body */}
