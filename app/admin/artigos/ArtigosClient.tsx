@@ -882,14 +882,20 @@ function AutomacaoSection() {
     setImageWarning(null)
     try {
       const res = await fetch('/api/admin/automation/run', { method: 'POST' })
-      const data = await res.json() as { success?: boolean; skipped?: boolean; message?: string; error?: string; post_id?: number; image_error?: string }
+      if (!res.ok && (res.status === 504 || res.status === 502 || res.status === 408)) {
+        setToast({ type: 'error', msg: 'A geração demorou mais que o tempo limite e foi interrompida pelo servidor. O artigo pode ter sido gerado parcialmente — confira o histórico de logs antes de tentar novamente.' })
+        await reloadLogs()
+        return
+      }
+      const data = await res.json().catch(() => ({})) as { success?: boolean; skipped?: boolean; message?: string; error?: string; post_id?: number; image_error?: string }
       if (data.success) {
         setToast({ type: 'success', msg: data.message ?? 'Artigo gerado e publicado!' })
         if (data.image_error) {
           setImageWarning(`Imagem de capa não gerada: ${data.image_error}`)
         }
       } else {
-        setToast({ type: 'error', msg: data.message ?? data.error ?? 'Nenhum tema disponível' })
+        const fallback = res.ok ? 'Nenhum tema disponível' : 'Erro ao executar automação'
+        setToast({ type: 'error', msg: data.message ?? data.error ?? fallback })
       }
       await Promise.all([reloadConfig(), reloadLogs()])
     } catch {
