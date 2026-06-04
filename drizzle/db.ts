@@ -14,11 +14,14 @@ declare global {
 function makeClient(url: string): ReturnType<typeof postgres> {
   return postgres(url, {
     ssl: { rejectUnauthorized: false },
-    max: 5,
+    // Supabase session pooler limita a 15 conexões. Em serverless (Vercel/Fluid
+    // Compute) cada instância de lambda mantém seu próprio pool; manter max baixo
+    // evita estourar o limite quando várias lambdas rodam em paralelo.
+    max: 1,
     prepare: false,
     connect_timeout: 10,
-    idle_timeout: 30,
-    max_lifetime: 60 * 10,
+    idle_timeout: 20,
+    max_lifetime: 60 * 5,
   })
 }
 
@@ -37,20 +40,17 @@ function getDb(): PostgresJsDatabase<typeof schema> {
 
   const url = process.env.DATABASE_URL!
 
-  const client =
-    global._pgClient ??
-    makeClient(url)
+  const client = global._pgClient ?? makeClient(url)
 
-  if (process.env.NODE_ENV !== 'production') {
-    global._pgClient = client
-    global._resolvedDbUrl = url
-  }
+  // Mantém o cliente/instância em global SEMPRE (inclusive produção).
+  // No Fluid Compute as instâncias de lambda são reutilizadas entre requests,
+  // então reaproveitar o pool evita abrir conexões novas a cada invocação e
+  // estourar o limite de 15 conexões do session pooler do Supabase.
+  global._pgClient = client
+  global._resolvedDbUrl = url
 
   const instance = drizzle(client, { schema })
-
-  if (process.env.NODE_ENV !== 'production') {
-    global._drizzleDb = instance
-  }
+  global._drizzleDb = instance
 
   return instance
 }
